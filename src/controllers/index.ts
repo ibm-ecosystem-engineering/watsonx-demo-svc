@@ -1,5 +1,4 @@
 import { HelloWorldController } from './hello-world';
+import {DataExtractionController} from "./data-extraction";
 
-export * from './hello-world';
-
-export const controllers = [HelloWorldController];
+export const controllers = [HelloWorldController, DataExtractionController];
