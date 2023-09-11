@@ -69,7 +69,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
     }
 
     async extractDataForQuestionInternal(customer: string, question: {id: string}, backends: WatsonBackends): Promise<DataExtractionResultModel> {
-        const config = first(this.getCsvData().filter(val => val.id === question.id))
+        const config = first((await this.getCsvData()).filter(val => val.id === question.id))
 
         if (!config) {
             throw new Error('Unable to find question: ' + question.id)

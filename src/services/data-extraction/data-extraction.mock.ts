@@ -7,8 +7,10 @@ import {delay, first} from "../../utils";
 export class DataExtractionMock extends DataExtractionCsv<{}> implements DataExtractionApi {
 
     async extractDataForQuestionInternal(_: string, question: {id: string}, auth: {}): Promise<DataExtractionResultModel> {
+        const data = await this.getCsvData();
+
         return delay(500, () => {
-            const config: DataExtractionConfig | undefined = first(this.getCsvData().filter(val => val.id === question.id))
+            const config: DataExtractionConfig | undefined = first(data.filter(val => val.id === question.id))
 
             if (!config) {
                 throw new Error('Error finding question: ' + question.id)
