@@ -75,6 +75,8 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
             throw new Error('Unable to find question: ' + question.id)
         }
 
+        console.log('Extracting data for question', {question: config.question, customer})
+
         const text = await this.queryDiscovery(customer, config, backends);
 
         const watsonxResponse = await this.generateResponse(customer, config, text, backends);
@@ -102,24 +104,29 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
             .map(passage => passage.passage_text)
             .join('\n')
 
+        console.log('1. Text extracted from Discovery:', {naturalLanguageQuery, text})
+
         return text;
     }
 
     async generateResponse(customer: string, config: DataExtractionConfig, text: string, backends: WatsonBackends): Promise<string> {
 
         const prompt = (config.prompt || `From below input find answer for ${config.question}`).replace('#', customer);
+        const parameters = {
+            decoding_method: this.backendConfig.decodingMethod,
+            max_new_tokens: this.backendConfig.maxNewTokens,
+            repetition_penalty: this.backendConfig.repetitionPenalty,
+        }
 
         const input = prompt + '\n\n' + text;
 
         const result: GenerativeResponse = await backends.wml.generate({
             input,
             modelId: this.backendConfig.modelId,
-            parameters: {
-                decoding_method: this.backendConfig.decodingMethod,
-                max_new_tokens: this.backendConfig.maxNewTokens,
-                repetition_penalty: this.backendConfig.repetitionPenalty,
-            }
+            parameters,
         });
+
+        console.log('2. Text generated from watsonx.ai:', {prompt, generatedText: result.generatedText})
 
         return result.generatedText;
     }
