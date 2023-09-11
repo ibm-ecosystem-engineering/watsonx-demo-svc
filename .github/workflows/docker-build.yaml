@@ -37,7 +37,7 @@ jobs:
           username: ${{ secrets.QUAY_CNTK_USERNAME }}
           password: ${{ secrets.QUAY_CNTK_TOKEN }}
 
-      - name: Setup variables ${{ matrix.base }}:${{ matrix.terraform }}
+      - name: Setup variables
         id: variables
         shell: bash
         run: |
@@ -52,15 +52,15 @@ jobs:
           fi
           
           echo "Release tag: ${RELEASE_TAG}"
-          echo "::set-output name=release-tag::$RELEASE_TAG"
+          echo "release-tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
           
           echo "Release tag enabled: $RELEASE_TAG_ENABLED"
-          echo "::set-output name=release-tag-enabled::$RELEASE_TAG_ENABLED"
+          echo "release-tag-enabled=$RELEASE_TAG_ENABLED" >> $GITHUB_OUTPUT
           
           echo "Latest enabled: $LATEST_ENABLED"
-          echo "::set-output name=latest-enabled::$LATEST_ENABLED"
+          echo "latest-enabled=$LATEST_ENABLED" >> $GITHUB_OUTPUT
 
-      - name: Docker CNTK meta ${{ matrix.base }}:${{ matrix.terraform }}
+      - name: Docker CNTK meta
         id: cntk-meta
         uses: docker/metadata-action@v4
         with:

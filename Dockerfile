@@ -9,7 +9,7 @@ RUN mkdir -p /opt/app-root/src/node_modules && \
     npm ci && \
     npm run build
 
-FROM registry.access.redhat.com/ubi9/nodejs-18-minimal:1-67
+FROM registry.access.redhat.com/ubi9/nodejs-18:1-62.1692771036
 
 ## Uncomment the below lines to update image security content if any
 # USER root
