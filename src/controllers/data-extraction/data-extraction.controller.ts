@@ -16,7 +16,7 @@ export class DataExtractionController {
     @Get('extractData')
     extractData(
         @Query('customer') customer: string,
-        @Query('questionIds') idStrings: string | string[]
+        @Query('questionIds') idStrings: string[]
     ) {
         const questionIds = Array.isArray(idStrings) ? idStrings : [idStrings]
 
