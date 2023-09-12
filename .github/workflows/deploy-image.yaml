@@ -39,6 +39,9 @@ jobs:
       options: --user devops
     needs: setup
 
+    env:
+      HOME: /home/devops
+
     steps:
       - name: IBM Cloud CE plugin
         run: ibmcloud plugin install code-engine -f
