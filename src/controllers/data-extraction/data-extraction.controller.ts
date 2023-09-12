@@ -14,11 +14,24 @@ export class DataExtractionController {
     }
 
     @Get('extractData')
-    extractData(
+    async extractData(
         @Query('customer') customer: string,
-        @Query('questionIds') idStrings: string[]
+        @Query('questionIds') idStrings: string[] = []
     ) {
         const questionIds = Array.isArray(idStrings) ? idStrings : [idStrings]
+
+        if (questionIds.length === 0) {
+            questionIds.push(...(await this.service.listQuestions()).map(question => question.id))
+        }
+
+        return this.service.extractData(customer, questionIds.map(id => ({id})))
+    }
+
+    @Get('extractAllData')
+    async extractAllData(
+        @Query('customer') customer: string
+    ) {
+        const questionIds = (await this.service.listQuestions()).map(question => question.id)
 
         return this.service.extractData(customer, questionIds.map(id => ({id})))
     }

@@ -1,6 +1,6 @@
 ID,Question,PoCScope,Company,Prompt,Expected Answer,watsonx Response
 1,What is Name and trading name of the organization?,,,,,
-2,What is the registered address of the company?,X,BP P.L.C,from below text find the registered address of the company #?,"1 St James's Square, London, SW1Y 4PD","1 St James's Square, London, SW1Y 4PD"
+2,What is the registered address of the company?,X,BP P.L.C,From below text find the registered address of the company #?,"1 St James's Square, London, SW1Y 4PD","1 St James's Square, London, SW1Y 4PD"
 3,What is the business/trading address of the company?,,,,,
 4,What is identification number of the organization?,X,BP P.L.C,from below text find  identification number of the organization #? ,102498,102498
 5,Who are the key controllers and authorized signatories?,,,,,

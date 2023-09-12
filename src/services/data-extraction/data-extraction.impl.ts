@@ -93,25 +93,46 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
     async queryDiscovery(customer: string, config: DataExtractionConfig, backends: WatsonBackends): Promise<string> {
         const naturalLanguageQuery = config.question + ' ' + customer;
 
-        const response = await backends.discovery.query({
+        const passagesPerDocument = false;
+        const response: DiscoveryV2.Response<DiscoveryV2.QueryResponse> = await backends.discovery.query({
             projectId: this.backendConfig.discoveryProjectId,
             naturalLanguageQuery,
             count: 3,
-            passages: {per_document: false}
+            passages: {
+                enabled: true,
+                per_document: passagesPerDocument,
+                count: 3
+            }
         })
 
-        const text = response.result.passages
-            .map(passage => passage.passage_text)
-            .join('\n')
+        const text = !passagesPerDocument
+            ? this.handleDiscoveryPassages(response.result)
+            : this.handleDiscoveryResult(response.result);
 
         console.log('1. Text extracted from Discovery:', {naturalLanguageQuery, text})
 
         return text;
     }
 
+    handleDiscoveryResult(result: DiscoveryV2.QueryResponse): string {
+        return result.results
+            .map(result => result.document_passages
+                .map(passage => passage.passage_text)
+                .join('\n')
+            )
+            .join('\n')
+    }
+
+    handleDiscoveryPassages(result: DiscoveryV2.QueryResponse): string {
+        return result.passages
+            .map(passage => passage.passage_text)
+            .join('\n')
+    }
+
     async generateResponse(customer: string, config: DataExtractionConfig, text: string, backends: WatsonBackends): Promise<string> {
 
-        const prompt = (config.prompt || `From below input find answer for ${config.question}`).replace('#', customer);
+        const prompt = (config.prompt || `From below text find answer for ${config.question} ${customer}`).replace('#', customer);
+        // const prompt = (`From below text find answer for ${config.question} ${customer}`).replace('#', customer);
         const parameters = {
             decoding_method: this.backendConfig.decodingMethod,
             max_new_tokens: this.backendConfig.maxNewTokens,
@@ -126,7 +147,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
             parameters,
         });
 
-        console.log('2. Text generated from watsonx.ai:', {prompt, generatedText: result.generatedText})
+        console.log('2. Text generated from watsonx.ai:', {prompt, generatedText: result.generatedText, input})
 
         return result.generatedText;
     }
