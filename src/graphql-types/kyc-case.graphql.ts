@@ -18,6 +18,10 @@ export class Customer implements CustomerModel {
     personalIdentificationNumber: string;
     @Field()
     riskCategory: string;
+    @Field()
+    entityType: string;
+    @Field()
+    industryType: string;
 }
 
 @ObjectType({description: 'KYC Person'})
@@ -47,7 +51,9 @@ export class NegativeScreening implements NegativeScreeningModel {
 @ObjectType({ description: 'Customer risk assessment' })
 export class CustomerRiskAssessment implements CustomerRiskAssessmentModel {
     @Field()
-    result: string;
+    rating: string;
+    @Field()
+    score: number;
 }
 
 @ObjectType({ description: 'KYC Case' })
@@ -82,6 +88,10 @@ export class CustomerInput implements CustomerModel {
     personalIdentificationNumber: string;
     @Field()
     riskCategory: string;
+    @Field()
+    entityType: string;
+    @Field()
+    industryType: string;
 }
 
 @InputType()

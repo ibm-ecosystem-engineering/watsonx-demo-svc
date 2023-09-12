@@ -3,6 +3,8 @@ import {BehaviorSubject, Observable} from "rxjs";
 import {CaseNotFound, KycCaseManagementApi} from "./kyc-case-management.api";
 import {ApproveCaseModel, createNewCase, CustomerModel, KycCaseModel, ReviewCaseModel} from "../../models";
 import {delay, first} from "../../utils";
+import {Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory} from "../customer-risk-assessment";
+import {customerRiskAssessmentConfig} from "../../config";
 
 const initialValue: KycCaseModel[] = [
     {
@@ -11,7 +13,9 @@ const initialValue: KycCaseModel[] = [
             name: 'John Doe',
             countryOfResidence: 'US',
             personalIdentificationNumber: '123458690',
-            riskCategory: 'Low'
+            riskCategory: 'Low',
+            entityType: 'Individual',
+            industryType: 'Oil and Gas'
         },
         status: 'New',
         documents: [],
@@ -22,7 +26,9 @@ const initialValue: KycCaseModel[] = [
             name: 'Jane Doe',
             countryOfResidence: 'CA',
             personalIdentificationNumber: 'AB1458690',
-            riskCategory: 'Low'
+            riskCategory: 'Low',
+            entityType: 'Individual',
+            industryType: 'Oil and Gas'
         },
         status: 'New',
         documents: [],
@@ -95,6 +101,18 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
 
         this.subject.next(this.subject.value);
 
+
+
+        this.customerRiskAssessment(currentCase)
+            .then(riskAssessment => {
+                currentCase.customerRiskAssessment = {
+                    score: riskAssessment.customerRiskAssessmentScore || 0,
+                    rating: riskAssessment.customerRiskAssessmentRating || 'N/A',
+                }
+
+                this.subject.next(this.subject.value);
+            })
+
         return currentCase;
     }
 
@@ -111,5 +129,23 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
         this.subject.next(this.subject.value);
 
         return currentCase;
+    }
+
+    async negativeNews(kycCase: KycCaseModel) {
+
+    }
+
+    async customerRiskAssessment(kycCase: KycCaseModel) {
+        const config = customerRiskAssessmentConfig();
+
+        const api = Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory(config);
+
+        return api
+            .customerRiskAssessmentRiskAssessment({
+                nonPersonalEntityType: kycCase.customer.entityType,
+                nonPersonalGeographyType: kycCase.customer.countryOfResidence,
+                nonPersonalIndustryType: kycCase.customer.industryType,
+            })
+            .then(result => result.data)
     }
 }

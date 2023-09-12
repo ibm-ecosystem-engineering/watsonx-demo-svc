@@ -1,4 +1,7 @@
 import Axios, {AxiosInstance} from 'axios';
+import PQueue from "./p-queue";
+
+const queue = new PQueue({concurrency: 4});
 
 export interface GenerativeInputParameters {
     decoding_method: string;
@@ -56,6 +59,10 @@ export class GenAiModel {
     }
 
     async generate(input: GenerativeInput): Promise<GenerativeResponse> {
+        return queue.add(() => this.generateInternal(input)) as any;
+    }
+
+    private async generateInternal(input: GenerativeInput): Promise<GenerativeResponse> {
         return this.client
             .post<GenerativeBackendResponse>(this.url, {
                 model_id: input.modelId,

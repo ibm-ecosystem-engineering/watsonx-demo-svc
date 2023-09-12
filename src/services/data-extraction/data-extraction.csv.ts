@@ -81,7 +81,12 @@ export abstract class DataExtractionCsv<A> extends DataExtractionApi {
         const auth: A = await this.getBackends();
 
         const extractDataForQuestion = (question: DataExtractionQuestionModel) => {
-            return this.extractDataForQuestionInternal(customer, question, auth);
+            return this.extractDataForQuestionInternal(customer, question, auth)
+                .catch(err => {
+                    console.error(`Error retrieving question for customer (${customer}: ${question}`, {err})
+
+                    return Object.assign({}, question, {watsonxResponse: '<Error>'});
+                });
         }
 
         return Promise.all(questions.map(extractDataForQuestion.bind(this)))

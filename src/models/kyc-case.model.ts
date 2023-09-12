@@ -18,6 +18,8 @@ export interface PersonModel {
 export interface CustomerModel extends PersonModel {
     personalIdentificationNumber: string;
     riskCategory: string;
+    entityType: string;
+    industryType: string;
 }
 
 export interface DocumentModel extends DocumentInputModel {
@@ -29,7 +31,8 @@ export interface NegativeScreeningModel {
 }
 
 export interface CustomerRiskAssessmentModel {
-    result: string;
+    rating: string;
+    score: number;
 }
 
 export interface ReviewCaseModel {
@@ -50,7 +53,6 @@ export interface DocumentInputModel {
     path: string;
 }
 
-
 export const createEmptyCase = (): KycCaseModel => {
     return {
         id: 'new',
@@ -58,7 +60,9 @@ export const createEmptyCase = (): KycCaseModel => {
             name: '',
             countryOfResidence: 'US',
             personalIdentificationNumber: '',
-            riskCategory: ''
+            riskCategory: '',
+            industryType: '',
+            entityType: '',
         },
         status: 'New',
         documents: [],

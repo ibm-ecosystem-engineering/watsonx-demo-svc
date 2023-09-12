@@ -11,6 +11,8 @@ input ApproveCaseInput {
 """KYC Customer"""
 type Customer {
   countryOfResidence: String!
+  entityType: String!
+  industryType: String!
   name: String!
   personalIdentificationNumber: String!
   riskCategory: String!
@@ -18,6 +20,8 @@ type Customer {
 
 input CustomerInput {
   countryOfResidence: String!
+  entityType: String!
+  industryType: String!
   name: String!
   personalIdentificationNumber: String!
   riskCategory: String!
@@ -25,7 +29,8 @@ input CustomerInput {
 
 """Customer risk assessment"""
 type CustomerRiskAssessment {
-  result: String!
+  rating: String!
+  score: Float!
 }
 
 """Data extraction question"""

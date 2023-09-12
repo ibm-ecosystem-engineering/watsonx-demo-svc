@@ -7,6 +7,7 @@ import {DataExtractionConfig, DataExtractionCsv} from "./data-extraction.csv";
 import {DataExtractionResultModel} from "../../models";
 import {first, GenAiModel, GenerativeResponse} from "../../utils";
 import DiscoveryV2 = require("ibm-watson/discovery/v2");
+import {createDiscoveryV2} from "../../utils/discovery-v2";
 
 interface DataExtractionBackendConfig {
     identityUrl: string;
@@ -167,7 +168,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
             projectId: this.backendConfig.wmlProjectId,
         })
 
-        const discovery = new DiscoveryV2({
+        const discovery = await createDiscoveryV2({
             authenticator: new IamAuthenticator({
                 apikey: this.backendConfig.discoveryApiKey,
             }),
