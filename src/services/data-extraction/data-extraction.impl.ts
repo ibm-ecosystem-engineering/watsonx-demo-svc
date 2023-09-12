@@ -111,6 +111,8 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
 
         console.log('1. Text extracted from Discovery:', {naturalLanguageQuery, text})
 
+        console.log(text)
+
         return text;
     }
 
@@ -118,15 +120,15 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
         return result.results
             .map(result => result.document_passages
                 .map(passage => passage.passage_text)
-                .join('\n')
+                .join(' ')
             )
-            .join('\n')
+            .join(' ')
     }
 
     handleDiscoveryPassages(result: DiscoveryV2.QueryResponse): string {
         return result.passages
             .map(passage => passage.passage_text)
-            .join('\n')
+            .join(' ')
     }
 
     async generateResponse(customer: string, config: DataExtractionConfig, text: string, backends: WatsonBackends): Promise<string> {

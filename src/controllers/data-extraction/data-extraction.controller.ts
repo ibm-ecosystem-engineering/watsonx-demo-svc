@@ -34,5 +34,6 @@ export class DataExtractionController {
         const questionIds = (await this.service.listQuestions()).map(question => question.id)
 
         return this.service.extractData(customer, questionIds.map(id => ({id})))
+            .catch(err => console.error(err))
     }
 }
