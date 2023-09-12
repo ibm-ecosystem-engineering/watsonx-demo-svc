@@ -36,6 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: quay.io/cloudnativetoolkit/cli-tools-ibmcloud:v1.2-v0.6.1-alpine
+      options: --user devops
     needs: setup
 
     steps:
