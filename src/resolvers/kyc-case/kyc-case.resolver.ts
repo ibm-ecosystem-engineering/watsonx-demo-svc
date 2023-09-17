@@ -2,7 +2,7 @@ import {Args, ID, Mutation, Query, Resolver, Subscription} from "@nestjs/graphql
 import {PubSub} from "graphql-subscriptions";
 
 import {ApproveCaseInput, CustomerInput, KycCase, ReviewCaseInput} from "../../graphql-types";
-import {ApproveCaseModel, CustomerModel, KycCaseModel, ReviewCaseModel} from "../../models";
+import {ApproveCaseModel, CustomerModel, DocumentModel, KycCaseModel, ReviewCaseModel} from "../../models";
 import {KycCaseManagementApi} from "../../services";
 
 const pubSub: PubSub = new PubSub();
@@ -57,9 +57,17 @@ export class KycCaseResolver {
     async addDocumentToCase(
         @Args('caseId', { type: () => ID }) caseId: string,
         @Args('documentName', { type: () => String }) documentName: string,
-        @Args('documentPath', { type: () => String }) documentPath: string,
+        @Args('documentUrl', { type: () => String }) documentUrl: string,
+    ): Promise<DocumentModel> {
+        return this.service.addDocumentToCase(caseId, documentName, {url: documentUrl});
+    }
+
+    @Mutation(() => KycCase)
+    async removeDocumentFromCase(
+        @Args('caseId', { type: () => ID }) caseId: string,
+        @Args('documentId', { type: () => ID }) documentId: string,
     ): Promise<KycCaseModel> {
-        return this.service.addDocumentToCase(caseId, documentName, documentPath);
+        return this.service.removeDocumentFromCase(caseId, documentId);
     }
 
     @Mutation(() => KycCase)

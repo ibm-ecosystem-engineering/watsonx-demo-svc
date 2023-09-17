@@ -7,12 +7,13 @@ export const customerRiskAssessmentConfig = (): Configuration => {
     }
 
     _instance = new Configuration({
-        apiKey: process.env.CRA_API_KEY,
+        username: process.env.CRA_USERNAME,
+        password: process.env.CRA_PASSWORD,
         basePath: process.env.CRA_BASE_PATH,
     });
 
-    if (!_instance.apiKey) {
-        throw new Error('CRA_API_KEY not set');
+    if (!_instance.username || !_instance.password) {
+        throw new Error('CRA_USERNAME or CRA_PASSWORD not set');
     }
 
     return _instance;

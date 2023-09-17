@@ -1,8 +1,9 @@
 import {Args, Query, Resolver, Subscription} from "@nestjs/graphql";
+import {PubSub} from "graphql-subscriptions";
+
 import {DataExtractionQuestion, DataExtractionQuestionIdInput, DataExtractionResult} from "../../graphql-types";
 import {DataExtractionQuestionModel, DataExtractionResultModel} from "../../models";
-import {DataExtractionApi} from "../../services/data-extraction";
-import {PubSub} from "graphql-subscriptions";
+import {DataExtractionApi} from "../../services";
 
 
 @Resolver(() => DataExtractionResult)

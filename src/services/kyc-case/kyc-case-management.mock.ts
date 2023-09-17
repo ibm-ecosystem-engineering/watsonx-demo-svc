@@ -1,10 +1,31 @@
 import {BehaviorSubject, Observable} from "rxjs";
+import mime from 'mime';
+import streamToBlob from 'stream-to-blob';
+import * as Stream from "stream";
 
 import {CaseNotFound, KycCaseManagementApi} from "./kyc-case-management.api";
-import {ApproveCaseModel, createNewCase, CustomerModel, KycCaseModel, ReviewCaseModel} from "../../models";
-import {delay, first} from "../../utils";
+import {
+    ApproveCaseModel,
+    createNewCase,
+    CustomerModel,
+    CustomerRiskAssessmentModel,
+    DocumentContent,
+    DocumentModel,
+    DocumentRef,
+    DocumentStream,
+    isDocumentContent,
+    isDocumentRef,
+    KycCaseModel,
+    KycCaseSummaryModel,
+    NegativeScreeningModel,
+    PersonModel,
+    ReviewCaseModel
+} from "../../models";
+import {delay, first, streamToBuffer, urlToStream} from "../../utils";
 import {Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory} from "../customer-risk-assessment";
-import {customerRiskAssessmentConfig} from "../../config";
+import {customerRiskAssessmentConfig, kycCaseSummaryConfig} from "../../config";
+import {NegativeNewsApi} from "../negative-news";
+import {DefaultApiFactory} from "../kyc-case-summary";
 
 const initialValue: KycCaseModel[] = [
     {
@@ -13,9 +34,8 @@ const initialValue: KycCaseModel[] = [
             name: 'John Doe',
             countryOfResidence: 'US',
             personalIdentificationNumber: '123458690',
-            riskCategory: 'Low',
-            entityType: 'Individual',
-            industryType: 'Oil and Gas'
+            entityType: '02',
+            industryType: '92.00',
         },
         status: 'New',
         documents: [],
@@ -26,9 +46,8 @@ const initialValue: KycCaseModel[] = [
             name: 'Jane Doe',
             countryOfResidence: 'CA',
             personalIdentificationNumber: 'AB1458690',
-            riskCategory: 'Low',
-            entityType: 'Individual',
-            industryType: 'Oil and Gas'
+            entityType: '03',
+            industryType: '10.82/2',
         },
         status: 'New',
         documents: [],
@@ -36,7 +55,11 @@ const initialValue: KycCaseModel[] = [
 ]
 
 export class KycCaseManagementMock implements KycCaseManagementApi {
-    subject: BehaviorSubject<KycCaseModel[]> = new BehaviorSubject(initialValue)
+    subject: BehaviorSubject<KycCaseModel[]> = new BehaviorSubject(initialValue);
+
+    constructor(private readonly negNewsService: NegativeNewsApi) {
+    }
+
 
     async listCases(): Promise<KycCaseModel[]> {
         return delay(1000, () => this.subject.value);
@@ -74,14 +97,53 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
         return newCase;
     }
 
-    async addDocumentToCase(caseId: string, documentName: string, documentPath: string): Promise<KycCaseModel> {
+    async addDocumentToCase(caseId: string, documentName: string, document: DocumentRef | DocumentContent | DocumentStream): Promise<DocumentModel> {
         const currentCase = await this.getCase(caseId);
 
-        currentCase.status = 'Pending';
-
         const id = '' + (currentCase.documents.length + 1);
+        const documentId = `${caseId}-${id}`;
+        const content = await this.loadDocument(document);
 
-        currentCase.documents.push({id: `${caseId}-${id}`, name: documentName, path: documentPath});
+        const newDoc = {id: documentId, name: documentName, path: `${documentId}/${documentName}`, content};
+
+        currentCase.documents.push(newDoc);
+
+        this.subject.next(this.subject.value);
+
+        return newDoc;
+    }
+
+    async loadDocument(document: DocumentRef | DocumentContent | DocumentStream): Promise<Buffer> {
+        if (isDocumentContent(document)) {
+            return document.content;
+        }
+
+        const stream: Stream = isDocumentRef(document)
+            ? await urlToStream(document.url)
+            : document.stream;
+
+        return streamToBuffer(stream);
+    }
+
+    async getDocument(id: string): Promise<DocumentModel> {
+        const doc: DocumentModel | undefined = first(
+            this.subject.value
+                .map(kycCase => first(kycCase.documents.filter(tmp => tmp.id === id)))
+                .filter(doc => !!doc)
+        )
+
+        if (!doc) {
+            throw new Error('Document not found: ' + id);
+        }
+
+        return doc;
+    }
+
+    async removeDocumentFromCase(caseId: string, documentId: string): Promise<KycCaseModel> {
+        const currentCase = await this.getCase(caseId);
+
+        currentCase.documents = currentCase.documents
+            .filter(doc => doc.id !== documentId)
 
         this.subject.next(this.subject.value);
 
@@ -101,17 +163,10 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
 
         this.subject.next(this.subject.value);
 
-
-
-        this.customerRiskAssessment(currentCase)
-            .then(riskAssessment => {
-                currentCase.customerRiskAssessment = {
-                    score: riskAssessment.customerRiskAssessmentScore || 0,
-                    rating: riskAssessment.customerRiskAssessmentRating || 'N/A',
-                }
-
-                this.subject.next(this.subject.value);
-            })
+        if (status === 'Pending') {
+            this.processCase(currentCase)
+                .catch(err => console.error('Error processing case', {err}))
+        }
 
         return currentCase;
     }
@@ -128,14 +183,62 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
 
         this.subject.next(this.subject.value);
 
+        this.processCase(currentCase)
+            .catch(err => console.error('Error processing case', {err}))
+
         return currentCase;
     }
 
-    async negativeNews(kycCase: KycCaseModel) {
+    async processCase(currentCase: KycCaseModel) {
 
+        const getSubjectCase = (currentCase: {id: string}): KycCaseModel => {
+            return first(this.subject.value
+                .filter(val => val.id === currentCase.id))
+        }
+
+        this.customerRiskAssessment(currentCase)
+            .then(riskAssessment => {
+                const subjectCase = getSubjectCase(currentCase);
+
+                subjectCase.customerRiskAssessment = riskAssessment
+
+                this.subject.next(this.subject.value);
+            });
+
+        this.negativeNews(currentCase.customer)
+            .then(news => {
+                const subjectCase = getSubjectCase(currentCase);
+
+                subjectCase.negativeScreening = news
+
+                this.subject.next(this.subject.value);
+            })
+
+        this.negativeNews(currentCase.counterparty)
+            .then(news => {
+                const subjectCase = getSubjectCase(currentCase);
+
+                subjectCase.counterpartyNegativeScreening = news
+
+                this.subject.next(this.subject.value);
+            })
+
+        this.summarizeCase(currentCase)
+            .then(summarize => {
+                const subjectCase = getSubjectCase(currentCase);
+
+                subjectCase.caseSummary = {summary: summarize.summary}
+
+                this.subject.next(this.subject.value);
+            })
     }
 
-    async customerRiskAssessment(kycCase: KycCaseModel) {
+    async negativeNews(person: PersonModel): Promise<NegativeScreeningModel> {
+        return this.negNewsService.screenPerson(person)
+            .then(result => ({result: result.summary}))
+    }
+
+    async customerRiskAssessment(kycCase: KycCaseModel): Promise<CustomerRiskAssessmentModel> {
         const config = customerRiskAssessmentConfig();
 
         const api = Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory(config);
@@ -147,5 +250,33 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
                 nonPersonalIndustryType: kycCase.customer.industryType,
             })
             .then(result => result.data)
+            .then(riskAssessment => ({
+                score: riskAssessment.customerRiskAssessmentScore || 0,
+                rating: riskAssessment.customerRiskAssessmentRating || 'N/A',
+            }));
+    }
+
+    async summarizeCase(kycCase: KycCaseModel): Promise<KycCaseSummaryModel> {
+        const config = kycCaseSummaryConfig();
+        const api = DefaultApiFactory(config);
+
+        const financialDoc: DocumentModel | undefined = this.findFinancialDoc(kycCase.documents)
+
+        if (financialDoc) {
+            const fileContents: Blob = await streamToBlob(financialDoc.content, mime.getType(financialDoc.path));
+            await api.uploadFinancialsPostForm(fileContents);
+        }
+
+        const result = await api.requestSummaryPost({entity: kycCase.customer.name})
+
+        console.log('Summarize result: ', {summary: result.data});
+
+        return {summary: result.data};
+    }
+
+    findFinancialDoc(documents: DocumentModel[]): DocumentModel | undefined {
+        const financialDocRegEx = /.*financial.*/ig
+
+        return first(documents.filter(doc => financialDocRegEx.test(doc.name)))
     }
 }

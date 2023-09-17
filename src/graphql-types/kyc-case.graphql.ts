@@ -40,6 +40,7 @@ export class Document implements DocumentModel {
     name: string;
     @Field()
     path: string;
+    content: Buffer;
 }
 
 @ObjectType({ description: 'Negative screening' })
