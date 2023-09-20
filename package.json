@@ -35,7 +35,7 @@
     "graphql": "^16.8.1",
     "graphql-subscriptions": "^2.0.0",
     "graphql-ws": "^5.14.0",
-    "ibm-cloud-sdk-core": "^4.1.0",
+    "ibm-cloud-sdk-core": "^4.1.1",
     "ibm-watson": "^8.0.0",
     "mime": "^3.0.0",
     "optional-js": "^2.3.0",
