@@ -90,4 +90,11 @@ export class KycCaseResolver {
     ): Promise<KycCaseModel> {
         return this.service.approveCase(approveCase);
     }
+
+    @Mutation(() => KycCase)
+    async processCase(
+        @Args('id', { type: () => ID }) caseId: string,
+    ): Promise<KycCaseModel> {
+        return this.service.processCase(caseId);
+    }
 }

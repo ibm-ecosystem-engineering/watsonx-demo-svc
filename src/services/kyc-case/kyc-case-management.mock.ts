@@ -26,7 +26,7 @@ import {
     Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory,
     customerRiskAssessmentConfig
 } from "../customer-risk-assessment";
-import {NegativeNewsApi} from "../negative-news";
+import {NegativeNewsApi, NewsScreeningResultModel} from "../negative-news";
 import {DefaultApiFactory, kycCaseSummaryConfig} from "../kyc-case-summary";
 import {NegativeNewsImpl} from "../negative-news/negative-news.impl";
 
@@ -167,7 +167,7 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
         this.subject.next(this.subject.value);
 
         if (status === 'Pending') {
-            this.processCase(currentCase)
+            this.processCaseInternal(currentCase)
                 .catch(err => console.error('Error processing case', {err}))
         }
 
@@ -186,13 +186,23 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
 
         this.subject.next(this.subject.value);
 
-        this.processCase(currentCase)
+        this.processCaseInternal(currentCase)
             .catch(err => console.error('Error processing case', {err}))
 
         return currentCase;
     }
 
-    async processCase(currentCase: KycCaseModel) {
+    async processCase(id: string): Promise<KycCaseModel> {
+        const currentCase = await this.getCase(id);
+
+
+        this.processCaseInternal(currentCase)
+            .catch(err => console.error('Error processing case', {err}))
+
+        return currentCase;
+    }
+
+    async processCaseInternal(currentCase: KycCaseModel) {
 
         const getSubjectCase = (currentCase: {id: string}): KycCaseModel => {
             return first(this.subject.value
@@ -221,7 +231,7 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
                 this.subject.next(this.subject.value);
             });
 
-        this.negativeNews(currentCase.customer)
+        this.negativeNews(currentCase.customer, currentCase.negativeScreening)
             .then(news => {
                 const subjectCase = getSubjectCase(currentCase);
 
@@ -242,7 +252,7 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
                 this.subject.next(this.subject.value);
             })
 
-        this.negativeNews(currentCase.counterparty)
+        this.negativeNews(currentCase.counterparty, currentCase.counterpartyNegativeScreening)
             .then(news => {
                 const subjectCase = getSubjectCase(currentCase);
 
@@ -284,13 +294,21 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
             })
     }
 
-    async negativeNews(person: PersonModel): Promise<NegativeScreeningModel> {
+    async negativeNews(person: PersonModel, currentNews?: NegativeScreeningModel): Promise<NegativeScreeningModel> {
+        if (currentNews && !currentNews.error) {
+            return currentNews;
+        }
+
         return this.negNewsService.screenPerson(person)
             .then(result => ({result: result.summary}))
     }
 
     async customerRiskAssessment(kycCase: KycCaseModel): Promise<CustomerRiskAssessmentModel> {
         const config = customerRiskAssessmentConfig();
+
+        if (kycCase.customerRiskAssessment && !kycCase.customerRiskAssessment.error) {
+            return kycCase.customerRiskAssessment;
+        }
 
         const api = Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory(config);
 
@@ -307,20 +325,28 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
             .then(riskAssessment => ({
                 score: riskAssessment.customerRiskAssessmentScore || 0,
                 rating: riskAssessment.customerRiskAssessmentRating || 'N/A',
-            }));
+            }))
     }
 
     async summarizeCase(kycCase: KycCaseModel): Promise<KycCaseSummaryModel> {
         const config = kycCaseSummaryConfig();
         const options = {baseURL: process.env.KYC_SUMMARY_BASE_PATH};
+
+        if (kycCase.caseSummary && !kycCase.caseSummary.error) {
+            return kycCase.caseSummary
+        }
         const api = DefaultApiFactory(config);
 
         const financialDoc: DocumentModel | undefined = this.findFinancialDoc(kycCase.documents)
 
         if (financialDoc) {
+            console.log('Uploading financial document: ' + financialDoc.name)
+
             const fileContents: Blob = new Blob([financialDoc.content], {type: getType(financialDoc.name)});
             await api.uploadFinancialsPostForm(fileContents, options);
         }
+
+        console.log('Getting summary: ' + kycCase.customer.name)
 
         const result = await api.requestSummaryPost({entity: kycCase.customer.name}, options);
 
