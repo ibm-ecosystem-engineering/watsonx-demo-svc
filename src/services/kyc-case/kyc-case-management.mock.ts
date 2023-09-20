@@ -162,7 +162,7 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
 
         const status = reviewCase.customerOutreach ? 'CustomerOutreach' : 'Pending';
 
-        Object.assign(currentCase, {reviewCase}, {status});
+        Object.assign(currentCase, reviewCase, {status});
 
         this.subject.next(this.subject.value);
 
