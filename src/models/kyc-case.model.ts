@@ -92,10 +92,10 @@ export const createEmptyCase = (): KycCaseModel => {
         id: 'new',
         customer: {
             name: '',
-            countryOfResidence: 'US',
+            countryOfResidence: 'United States',
             personalIdentificationNumber: '',
-            industryType: '',
-            entityType: '',
+            industryType: 'Private Limited Company',
+            entityType: 'Growing of rice',
         },
         status: 'New',
         documents: [],

@@ -1,6 +1,6 @@
 import {BehaviorSubject, Observable} from "rxjs";
-import mime from 'mime';
-import streamToBlob from 'stream-to-blob';
+import {getType} from 'mime';
+import * as streamToBlob from 'stream-to-blob';
 import * as Stream from "stream";
 
 import {CaseNotFound, KycCaseManagementApi} from "./kyc-case-management.api";
@@ -47,7 +47,7 @@ const initialValue: KycCaseModel[] = [
         id: '2',
         customer: {
             name: 'Jane Doe',
-            countryOfResidence: 'CA',
+            countryOfResidence: 'Canada',
             personalIdentificationNumber: 'AB1458690',
             entityType: 'Sole Trader',
             industryType: 'Extraction of crude petroleum',
@@ -294,12 +294,15 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
 
         const api = Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory(config);
 
+        const body = {
+            nonPersonalEntityType: kycCase.customer.entityType,
+            nonPersonalGeographyType: kycCase.customer.countryOfResidence,
+            nonPersonalIndustryType: kycCase.customer.industryType,
+        };
+
+        console.log('Getting customer risk assessment: ', body)
         return api
-            .customerRiskAssessmentRiskAssessment({
-                nonPersonalEntityType: kycCase.customer.entityType,
-                nonPersonalGeographyType: kycCase.customer.countryOfResidence,
-                nonPersonalIndustryType: kycCase.customer.industryType,
-            })
+            .customerRiskAssessmentRiskAssessment(body)
             .then(result => result.data)
             .then(riskAssessment => ({
                 score: riskAssessment.customerRiskAssessmentScore || 0,
@@ -309,16 +312,17 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
 
     async summarizeCase(kycCase: KycCaseModel): Promise<KycCaseSummaryModel> {
         const config = kycCaseSummaryConfig();
+        const options = {baseURL: process.env.KYC_SUMMARY_BASE_PATH};
         const api = DefaultApiFactory(config);
 
         const financialDoc: DocumentModel | undefined = this.findFinancialDoc(kycCase.documents)
 
         if (financialDoc) {
-            const fileContents: Blob = await streamToBlob(financialDoc.content, mime.getType(financialDoc.path));
-            await api.uploadFinancialsPostForm(fileContents);
+            const fileContents: Blob = new Blob([financialDoc.content], {type: getType(financialDoc.name)});
+            await api.uploadFinancialsPostForm(fileContents, options);
         }
 
-        const result = await api.requestSummaryPost({entity: kycCase.customer.name})
+        const result = await api.requestSummaryPost({entity: kycCase.customer.name}, options);
 
         console.log('Summarize result: ', {summary: result.data});
 
@@ -327,7 +331,15 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
 
     findFinancialDoc(documents: DocumentModel[]): DocumentModel | undefined {
         const financialDocRegEx = /.*financial.*/ig
+        const annualDocRegEx = /.*annual.*/ig
 
-        return first(documents.filter(doc => financialDocRegEx.test(doc.name)))
+        const doc = first(documents
+            .filter(doc => financialDocRegEx.test(doc.name) || annualDocRegEx.test(doc.name)))
+
+        if (doc) {
+            return doc;
+        }
+
+        return documents.length > 0 ? documents[0] : undefined;
     }
 }

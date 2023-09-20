@@ -2,11 +2,7 @@ import {MenuOptionsApi} from "./menu-options.api";
 import {FormOptionModel} from "../../models";
 import {parseCsv} from "../../utils";
 
-const countryTypesCsv = `Code,description,risk_weight,
-XG,EU Organisations,LOW,
-NULL,Missing Data,MEDIUM,
-NOT_FOUND,Data Not Recognised,MEDIUM,
-XH,Other International Org.,LOW,
+const countryTypesCsv = `XH,Other International Org.,LOW,
 QU,Unknown,MEDIUM,
 XB,Abu Dhabi,HIGH,
 AF,Afghanistan,REFER-SANCTIONS,
@@ -268,8 +264,7 @@ ZR,Zaire (Democratic Republic Of Congo),REFER-SANCTIONS,
 ZM,Zambia,HIGH,
 ZW,Zimbabwe,REFER-SANCTIONS,`
 
-const industryTypesCsv = `Code,Division,Industry ,Strategic Rating,
-01.11,Growing of non-perennial crops,"Growing of cereals (except rice), leguminous crops and oil seeds",MEDIUM,
+const industryTypesCsv = `01.11,Growing of non-perennial crops,"Growing of cereals (except rice), leguminous crops and oil seeds",MEDIUM,
 01.12,Growing of non-perennial crops,Growing of rice,LOW,
 01.13,Growing of non-perennial crops,"Growing of vegetables and melons, roots and tubers",MEDIUM,
 01.14,Growing of non-perennial crops,Growing of sugar cane,LOW,
@@ -1008,9 +1003,7 @@ const industryTypesCsv = `Code,Division,Industry ,Strategic Rating,
 NOT_FOUND,,Data Not Recognised,HIGH,
 NULL,,MISSING DATA,HIGH,
 `;
-const entityTypesCsv = `
-code,description,risk_weight
-01,Private Limited Company,MEDIUM
+const entityTypesCsv = `01,Private Limited Company,MEDIUM
 02,Sole Trader,MEDIUM
 03,Limited Liability Partnership,MEDIUM
 04,Clubs,HIGH
@@ -1035,14 +1028,15 @@ export class MenuOptionsMock implements MenuOptionsApi {
             return countryTypes;
         }
 
-        return entityTypes = countryTypesCsv
+        return countryTypes = countryTypesCsv
             .split('\n')
             .map(parseCsv)
+            .filter((_, index) => index !== 0)
             .map(values => ({
                 value: '' + values[1],
                 text: '' + values[1],
             }))
-            .filter(val => val.value !== 'code');
+            .filter(val => val.text !== 'description')
     }
 
     async getEntityTypes(): Promise<FormOptionModel[]> {
@@ -1053,11 +1047,12 @@ export class MenuOptionsMock implements MenuOptionsApi {
         return entityTypes = entityTypesCsv
             .split('\n')
             .map(parseCsv)
+            .filter((_, index) => index !== 0)
             .map(values => ({
                 value: '' + values[1],
                 text: '' + values[1],
             }))
-            .filter(val => val.value !== 'code');
+            .filter(val => val.value !== 'Code');
     }
 
     async getIndustries(): Promise<FormOptionModel[]> {
@@ -1068,10 +1063,11 @@ export class MenuOptionsMock implements MenuOptionsApi {
         return industryTypes = industryTypesCsv
             .split('\n')
             .map(parseCsv)
+            .filter((_, index) => index !== 0)
             .map(values => ({
                 value: '' + values[2],
                 text: '' + values[2],
             }))
-            .filter(val => val.value !== 'Code');
+            .filter(val => val.text !== 'Division');
     }
 }
