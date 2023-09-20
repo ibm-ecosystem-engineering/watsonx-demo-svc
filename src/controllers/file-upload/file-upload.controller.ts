@@ -15,7 +15,7 @@ export class FileUploadController {
 
         return this.service
             .addDocumentToCase(input.parentId, input.name, {content: file.buffer})
-            .then(doc => ({id: doc.id, name: doc.name, path: doc.path}));
+            .then(doc => ({id: doc.id, name: doc.name, path: `/document/${doc.path}`}));
     }
 
     @Get(':id/:name')
