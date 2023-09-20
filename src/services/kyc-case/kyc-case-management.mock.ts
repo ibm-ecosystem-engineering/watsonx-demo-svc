@@ -100,14 +100,14 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
         return newCase;
     }
 
-    async addDocumentToCase(caseId: string, documentName: string, document: DocumentRef | DocumentContent | DocumentStream): Promise<DocumentModel> {
+    async addDocumentToCase(caseId: string, documentName: string, document: DocumentRef | DocumentContent | DocumentStream, pathPrefix: string = ''): Promise<DocumentModel> {
         const currentCase = await this.getCase(caseId);
 
         const id = '' + (currentCase.documents.length + 1);
         const documentId = `${caseId}-${id}`;
         const content = await this.loadDocument(document);
 
-        const newDoc = {id: documentId, name: documentName, path: `${documentId}/${documentName}`, content};
+        const newDoc = {id: documentId, name: documentName, path: `${pathPrefix}${documentId}/${documentName}`, content};
 
         currentCase.documents.push(newDoc);
 

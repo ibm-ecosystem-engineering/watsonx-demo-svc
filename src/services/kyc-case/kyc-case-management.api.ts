@@ -18,7 +18,7 @@ export abstract class KycCaseManagementApi {
     abstract getCase(id: string): Promise<KycCaseModel>;
     abstract createCase(customer: CustomerModel): Promise<KycCaseModel>;
     abstract getDocument(id: string): Promise<DocumentModel>;
-    abstract addDocumentToCase(id: string, documentName: string, document: DocumentRef | DocumentContent | DocumentStream): Promise<DocumentModel>;
+    abstract addDocumentToCase(id: string, documentName: string, document: DocumentRef | DocumentContent | DocumentStream, pathPrefix?: string): Promise<DocumentModel>;
     abstract removeDocumentFromCase(id: string, documentId: string): Promise<KycCaseModel>;
     abstract reviewCase(input: ReviewCaseModel): Promise<KycCaseModel>;
     abstract approveCase(input: ApproveCaseModel): Promise<KycCaseModel>;
