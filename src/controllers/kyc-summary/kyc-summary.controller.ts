@@ -1,11 +1,9 @@
 import {AxiosResponse} from "axios";
 import {Body, Controller, Post, UploadedFile, UseInterceptors} from "@nestjs/common";
-import {ApiConsumes, ApiHeader, ApiParam, ApiProperty, ApiTags} from "@nestjs/swagger";
-
-import {kycCaseSummaryConfig} from "../../config";
-import {DefaultApiFactory, Entity, IDefaultApi} from "../../services";
 import {FileInterceptor} from "@nestjs/platform-express";
-import {SwaggerEnumType} from "@nestjs/swagger/dist/types/swagger-enum.type";
+import {ApiConsumes, ApiProperty, ApiTags} from "@nestjs/swagger";
+
+import {DefaultApiFactory, Entity, IDefaultApi, kycCaseSummaryConfig} from "../../services";
 
 class EntityData implements Entity {
     @ApiProperty()

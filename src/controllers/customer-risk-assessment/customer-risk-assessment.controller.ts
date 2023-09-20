@@ -1,11 +1,11 @@
 import {Body, Controller, Get, Post} from "@nestjs/common";
+import {ApiPropertyOptional, ApiTags} from "@nestjs/swagger";
 
 import {
     Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory,
+    customerRiskAssessmentConfig,
     CustomerRiskAssessmentRisk0020AssessmentInput
 } from "../../services/customer-risk-assessment";
-import {customerRiskAssessmentConfig} from "../../config";
-import {ApiPropertyOptional, ApiTags} from "@nestjs/swagger";
 import {MenuOptionsApi} from "../../services";
 
 class CustomerRiskAssessmentInput implements CustomerRiskAssessmentRisk0020AssessmentInput {

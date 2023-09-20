@@ -22,10 +22,12 @@ import {
     ReviewCaseModel
 } from "../../models";
 import {delay, first, streamToBuffer, urlToStream} from "../../utils";
-import {Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory} from "../customer-risk-assessment";
-import {customerRiskAssessmentConfig, kycCaseSummaryConfig} from "../../config";
+import {
+    Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory,
+    customerRiskAssessmentConfig
+} from "../customer-risk-assessment";
 import {NegativeNewsApi} from "../negative-news";
-import {DefaultApiFactory} from "../kyc-case-summary";
+import {DefaultApiFactory, kycCaseSummaryConfig} from "../kyc-case-summary";
 import {NegativeNewsImpl} from "../negative-news/negative-news.impl";
 
 const initialValue: KycCaseModel[] = [
@@ -33,10 +35,10 @@ const initialValue: KycCaseModel[] = [
         id: '1',
         customer: {
             name: 'John Doe',
-            countryOfResidence: 'US',
+            countryOfResidence: 'United States',
             personalIdentificationNumber: '123458690',
-            entityType: '02',
-            industryType: '92.00',
+            entityType: 'Private Limited Company',
+            industryType: 'Growing of rice',
         },
         status: 'New',
         documents: [],
@@ -47,8 +49,8 @@ const initialValue: KycCaseModel[] = [
             name: 'Jane Doe',
             countryOfResidence: 'CA',
             personalIdentificationNumber: 'AB1458690',
-            entityType: '03',
-            industryType: '10.82/2',
+            entityType: 'Sole Trader',
+            industryType: 'Extraction of crude petroleum',
         },
         status: 'New',
         documents: [],

@@ -1,4 +1,4 @@
-import {Configuration} from "../services/kyc-case-summary";
+import {Configuration} from "./configuration";
 
 let _instance: Configuration;
 export const kycCaseSummaryConfig = (): Configuration => {
