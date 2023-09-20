@@ -13,6 +13,7 @@ export * from './kyc-case';
 export * from './menu-options';
 export * from './document-manager';
 export * from './negative-news';
+export * from './kyc-case-summary';
 
 export const providers: Provider[] = [
     helloWorldProvider,

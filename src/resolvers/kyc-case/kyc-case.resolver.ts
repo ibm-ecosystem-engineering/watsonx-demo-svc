@@ -1,7 +1,7 @@
 import {Args, ID, Mutation, Query, Resolver, Subscription} from "@nestjs/graphql";
 import {PubSub} from "graphql-subscriptions";
 
-import {ApproveCaseInput, CustomerInput, KycCase, ReviewCaseInput} from "../../graphql-types";
+import {ApproveCaseInput, CustomerInput, Document, KycCase, ReviewCaseInput} from "../../graphql-types";
 import {ApproveCaseModel, CustomerModel, DocumentModel, KycCaseModel, ReviewCaseModel} from "../../models";
 import {KycCaseManagementApi} from "../../services";
 
@@ -44,6 +44,13 @@ export class KycCaseResolver {
         @Args('id', { type: () => ID }) id: string
     ): Promise<KycCaseModel> {
         return this.service.getCase(id);
+    }
+
+    @Query(() => Document)
+    async getDocument(
+        @Args('id', { type: () => ID }) id: string
+    ): Promise<DocumentModel> {
+        return this.service.getDocument(id);
     }
 
     @Mutation(() => KycCase)

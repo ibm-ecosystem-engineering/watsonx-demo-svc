@@ -15,7 +15,6 @@ type Customer {
   industryType: String!
   name: String!
   personalIdentificationNumber: String!
-  riskCategory: String!
 }
 
 input CustomerInput {
@@ -24,11 +23,11 @@ input CustomerInput {
   industryType: String!
   name: String!
   personalIdentificationNumber: String!
-  riskCategory: String!
 }
 
 """Customer risk assessment"""
 type CustomerRiskAssessment {
+  error: String
   rating: String!
   score: Float!
 }
@@ -62,8 +61,15 @@ type Document {
 }
 
 input DocumentInput {
+  id: ID!
   name: String!
   path: String!
+}
+
+"""Object representing a key/value pair"""
+type FormOption {
+  text: String!
+  value: String!
 }
 
 """greeting"""
@@ -73,6 +79,7 @@ type Greeting {
 
 """KYC Case"""
 type KycCase {
+  caseSummary: KycCaseSummary
   counterparty: Person
   counterpartyNegativeScreening: NegativeScreening
   customer: Customer!
@@ -84,15 +91,23 @@ type KycCase {
   status: String!
 }
 
+"""KYC case summary"""
+type KycCaseSummary {
+  error: String
+  summary: String!
+}
+
 type Mutation {
-  addDocumentToCase(caseId: ID!, documentName: String!, documentPath: String!): KycCase!
+  addDocumentToCase(caseId: ID!, documentName: String!, documentUrl: String!): KycCase!
   approveCase(case: ApproveCaseInput!): KycCase!
   createCase(customer: CustomerInput!): KycCase!
+  removeDocumentFromCase(caseId: ID!, documentId: ID!): KycCase!
   reviewCase(case: ReviewCaseInput!): KycCase!
 }
 
 """Negative screening"""
 type NegativeScreening {
+  error: String
   result: String!
 }
 
@@ -111,8 +126,12 @@ type Query {
   extractDataForQuestion(customer: String!, question: DataExtractionQuestionIdInput!): DataExtractionResult!
   extractDataForQuestions(customer: String!, questions: [DataExtractionQuestionIdInput!]!): [DataExtractionResult!]!
   getCase(id: ID!): KycCase!
+  getDocument(id: ID!): Document!
   helloWorld: Greeting!
   listCases: [KycCase!]!
+  listCountries: [FormOption!]!
+  listEntityTypes: [FormOption!]!
+  listIndustryTypes: [FormOption!]!
   listQuestions: [DataExtractionQuestion!]!
 }
 

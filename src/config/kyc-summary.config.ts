@@ -12,9 +12,9 @@ export const kycCaseSummaryConfig = (): Configuration => {
         basePath: process.env.KYC_SUMMARY_BASE_PATH,
     });
 
-    if (!_instance.username || !_instance.password) {
-        throw new Error('KYC_SUMMARY_USERNAME or KYC_SUMMARY_PASSWORD not set');
-    }
+    // if (!_instance.username || !_instance.password) {
+    //     throw new Error('KYC_SUMMARY_USERNAME or KYC_SUMMARY_PASSWORD not set');
+    // }
 
     return _instance;
 }

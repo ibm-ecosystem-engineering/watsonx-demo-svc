@@ -25,17 +25,18 @@ export interface CustomerModel extends PersonModel {
 }
 
 export interface DocumentModel extends DocumentInputModel {
-    id: string;
     content: Buffer;
 }
 
 export interface NegativeScreeningModel {
     result: string;
+    error?: string;
 }
 
 export interface CustomerRiskAssessmentModel {
     rating: string;
     score: number;
+    error?: string;
 }
 
 export interface ReviewCaseModel {
@@ -53,6 +54,7 @@ export interface ApproveCaseModel {
 
 export interface KycCaseSummaryModel {
     summary: string;
+    error?: string;
 }
 
 export interface DocumentRef {
@@ -80,6 +82,7 @@ export const isDocumentStream = (val: any): val is DocumentStream => {
 }
 
 export interface DocumentInputModel {
+    id: string;
     name: string;
     path: string;
 }

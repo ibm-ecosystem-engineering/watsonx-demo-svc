@@ -19,7 +19,16 @@ import {PersonModel} from "../../models";
 
 export class NegativeNewsImpl implements NegativeNewsApi {
     async screenPerson(person: PersonModel): Promise<NewsScreeningResultModel> {
-        return undefined;
+        const result: NewsScreeningResultModel = {
+            negativeNews: [],
+            nonNegativeNews: [],
+            subject: "",
+            summary: "",
+            totalScreened: 0,
+            unrelatedNews: []
+        };
+
+        return result;
     }
 
 }

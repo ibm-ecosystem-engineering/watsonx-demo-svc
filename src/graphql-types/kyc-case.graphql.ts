@@ -4,7 +4,7 @@ import {
     CustomerModel,
     CustomerRiskAssessmentModel, DocumentInputModel,
     DocumentModel,
-    KycCaseModel,
+    KycCaseModel, KycCaseSummaryModel,
     NegativeScreeningModel, PersonModel, ReviewCaseModel
 } from "../models";
 
@@ -16,8 +16,6 @@ export class Customer implements CustomerModel {
     countryOfResidence: string;
     @Field()
     personalIdentificationNumber: string;
-    @Field()
-    riskCategory: string;
     @Field()
     entityType: string;
     @Field()
@@ -47,6 +45,8 @@ export class Document implements DocumentModel {
 export class NegativeScreening implements NegativeScreeningModel {
     @Field()
     result: string;
+    @Field(() => String, {nullable: true})
+    error?: string;
 }
 
 @ObjectType({ description: 'Customer risk assessment' })
@@ -55,6 +55,8 @@ export class CustomerRiskAssessment implements CustomerRiskAssessmentModel {
     rating: string;
     @Field()
     score: number;
+    @Field(() => String, {nullable: true})
+    error: string;
 }
 
 @ObjectType({ description: 'KYC Case' })
@@ -68,15 +70,25 @@ export class KycCase implements KycCaseModel {
     @Field(() => [Document])
     documents: DocumentModel[];
     @Field(() => Person, {nullable: true})
-    counterparty: PersonModel;
+    counterparty?: PersonModel;
     @Field({nullable: true})
-    customerOutreach: string;
+    customerOutreach?: string;
     @Field(() => NegativeScreening, {nullable: true})
-    negativeScreening: NegativeScreeningModel;
+    negativeScreening?: NegativeScreeningModel;
     @Field(() => NegativeScreening, {nullable: true})
-    counterpartyNegativeScreening: NegativeScreeningModel;
+    counterpartyNegativeScreening?: NegativeScreeningModel;
     @Field(() => CustomerRiskAssessment, {nullable: true})
-    customerRiskAssessment: CustomerRiskAssessmentModel;
+    customerRiskAssessment?: CustomerRiskAssessmentModel;
+    @Field(() => KycCaseSummary, {nullable: true})
+    caseSummary?: KycCaseSummaryModel;
+}
+
+@ObjectType({ description: 'KYC case summary' })
+export class KycCaseSummary implements KycCaseSummaryModel {
+    @Field()
+    summary: string;
+    @Field(() => String, {nullable: true})
+    error: string;
 }
 
 @InputType()
@@ -87,8 +99,6 @@ export class CustomerInput implements CustomerModel {
     countryOfResidence: string;
     @Field()
     personalIdentificationNumber: string;
-    @Field()
-    riskCategory: string;
     @Field()
     entityType: string;
     @Field()
@@ -127,6 +137,8 @@ export class ApproveCaseInput implements ApproveCaseModel {
 
 @InputType()
 export class DocumentInput implements DocumentInputModel {
+    @Field(() => ID)
+    id: string;
     @Field()
     name: string;
     @Field()

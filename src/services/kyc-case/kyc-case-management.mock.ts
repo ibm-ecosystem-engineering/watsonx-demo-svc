@@ -26,6 +26,7 @@ import {Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory} from "..
 import {customerRiskAssessmentConfig, kycCaseSummaryConfig} from "../../config";
 import {NegativeNewsApi} from "../negative-news";
 import {DefaultApiFactory} from "../kyc-case-summary";
+import {NegativeNewsImpl} from "../negative-news/negative-news.impl";
 
 const initialValue: KycCaseModel[] = [
     {
@@ -57,7 +58,7 @@ const initialValue: KycCaseModel[] = [
 export class KycCaseManagementMock implements KycCaseManagementApi {
     subject: BehaviorSubject<KycCaseModel[]> = new BehaviorSubject(initialValue);
 
-    constructor(private readonly negNewsService: NegativeNewsApi) {
+    constructor(private readonly negNewsService: NegativeNewsApi = new NegativeNewsImpl()) {
     }
 
 
@@ -203,6 +204,19 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
                 subjectCase.customerRiskAssessment = riskAssessment
 
                 this.subject.next(this.subject.value);
+            })
+            .catch(err => {
+                const subjectCase = getSubjectCase(currentCase);
+
+                console.log('Error getting customer risk assessment: ', {err})
+
+                subjectCase.customerRiskAssessment = {
+                    error: err.message,
+                    score: 0,
+                    rating: 'N/A'
+                };
+
+                this.subject.next(this.subject.value);
             });
 
         this.negativeNews(currentCase.customer)
@@ -210,6 +224,18 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
                 const subjectCase = getSubjectCase(currentCase);
 
                 subjectCase.negativeScreening = news
+
+                this.subject.next(this.subject.value);
+            })
+            .catch(err => {
+                const subjectCase = getSubjectCase(currentCase);
+
+                console.log('Error getting negative screening: ', {err})
+
+                subjectCase.negativeScreening = {
+                    result: 'N/A',
+                    error: err.message,
+                }
 
                 this.subject.next(this.subject.value);
             })
@@ -222,12 +248,35 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
 
                 this.subject.next(this.subject.value);
             })
+            .catch(err => {
+                const subjectCase = getSubjectCase(currentCase);
+
+                console.log('Error getting counterparty negative screening: ', {err})
+
+                subjectCase.counterpartyNegativeScreening = {
+                    result: 'N/A',
+                    error: err.message,
+                }
+
+                this.subject.next(this.subject.value);
+            })
 
         this.summarizeCase(currentCase)
             .then(summarize => {
                 const subjectCase = getSubjectCase(currentCase);
 
                 subjectCase.caseSummary = {summary: summarize.summary}
+
+                this.subject.next(this.subject.value);
+            })
+            .catch(err => {
+                const subjectCase = getSubjectCase(currentCase);
+
+                console.log('Error getting case summary: ', {err})
+                subjectCase.caseSummary = {
+                    summary: 'N/A',
+                    error: err.message,
+                }
 
                 this.subject.next(this.subject.value);
             })
