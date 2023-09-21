@@ -1,12 +1,11 @@
 import * as process from "process";
 import {IamAuthenticator, IamTokenManager} from "ibm-cloud-sdk-core";
-import {Client} from '@ibm-generative-ai/node-sdk';
+import DiscoveryV2 = require("ibm-watson/discovery/v2");
 
 import {DataExtractionApi} from "./data-extraction.api";
 import {DataExtractionConfig, DataExtractionCsv} from "./data-extraction.csv";
 import {DataExtractionResultModel} from "../../models";
 import {first, GenAiModel, GenerativeResponse} from "../../utils";
-import DiscoveryV2 = require("ibm-watson/discovery/v2");
 import {createDiscoveryV2} from "../../utils/discovery-v2";
 
 export interface DataExtractionBackendConfig {

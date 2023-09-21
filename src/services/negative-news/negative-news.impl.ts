@@ -1,6 +1,11 @@
+import ScrapeitSDK = require('@scrapeit-cloud/google-serp-api');
+
 import {NegativeNewsApi, NewsScreeningResultModel} from "./negative-news.api";
 import {PersonModel} from "../../models";
+import PQueue from "../../utils/p-queue";
+import {isValidUrl} from "../../utils";
 
+const queue = new PQueue({concurrency: 1});
 
 /*
                 data = search_func(query, num_results,api_key)
@@ -308,8 +313,159 @@ def  final_conclusion(tp,fp, pos_news,subject_name, num_results):
 
  */
 
+interface SearchResult {
+    position: number;
+    title: string;
+    link: string;
+    source: string;
+    snippet: string;
+    date: string;
+}
+
+interface ScrapeitResponse {
+    searchInformation: {
+        totalResults: string;
+        timeTaken: number;
+    }
+    newsResults: SearchResult[];
+    pagination: {
+        next: string;
+        current: number;
+        pages: Array<{
+            [index: string]: string
+        }>;
+    }
+}
+
+interface NegativeNewsConfig {
+    numResults: number;
+    apiKey: string;
+}
+
+let _config: NegativeNewsConfig;
+const buildNegNewsConfig = (): NegativeNewsConfig => {
+    if (_config) {
+        return _config;
+    }
+
+    const tmp: NegativeNewsConfig = {
+        numResults: 5,
+        apiKey: process.env.SCRAPEIT_API_KEY
+    }
+
+    if (!tmp.apiKey) {
+        throw new Error('SCRAPEIT_API_KEY not set!')
+    }
+
+    return _config = tmp;
+}
+
+interface ValidatedSearchResult extends SearchResult {
+    isValid: boolean;
+}
+
+interface News {}
+
+interface CheckedNews {}
+
+interface Tp {}
+
+interface Fp {}
+
 export class NegativeNewsImpl implements NegativeNewsApi {
     async screenPerson(person: PersonModel): Promise<NewsScreeningResultModel> {
+
+        const data: SearchResult[]  = await this.search(person.name);
+
+        const {validUrls, badUrls} = await this.validateUrls(data);
+
+        await this.reportBadUrls(badUrls);
+
+        const {news, badUrls: moreBadUrls} = await this.scrapeNews(validUrls);
+
+        const {negativeNews, positiveNews} = await this.checkNegativeNews(news)
+        await this.reportPositiveNews(positiveNews)
+        const {tp, fp} = await this.filterNews(negativeNews, person.name)
+        await this.reportFp(fp)
+        await this.reportTp(tp);
+        const result = this.finalConclusion(tp, fp, positiveNews, person.name)
+
+        return result;
+    }
+
+    async search(query: string): Promise<SearchResult[]> {
+        const negNewsConfig = buildNegNewsConfig();
+
+        const client = new ScrapeitSDK(negNewsConfig.apiKey)
+
+        const params = {
+            "q": query,
+            "gl": "us",
+            "hl": "en",
+            "num": negNewsConfig.numResults,
+            "tbm": "nws",
+        }
+        const response: ScrapeitResponse = await queue.add(() => client.scrape(params))
+
+        return response.newsResults;
+    }
+
+    async validateUrls(data: SearchResult[]): Promise<{validUrls: ValidatedSearchResult[], badUrls: ValidatedSearchResult[]}> {
+        const validatedData: ValidatedSearchResult[] = await Promise.all(
+            data.map(this.validateUrl.bind(this))
+        )
+
+        return {
+            validUrls: validatedData.filter(val => val.isValid),
+            badUrls: validatedData.filter(val => !val.isValid),
+        }
+    }
+
+    async validateUrl<T extends {link: string}, R extends T & {isValid: boolean}>(data: T): Promise<R> {
+        const isValid = await isValidUrl(data.link)
+
+        return Object.assign({}, data, {isValid}) as any
+    }
+
+    async reportBadUrls(badUrls: ValidatedSearchResult[]) {
+        console.log('Bad urls: ', badUrls);
+    }
+
+    async scrapeNews(urls: ValidatedSearchResult[]): Promise<{news: News[], badUrls: ValidatedSearchResult[]}> {
+
+        return {
+            news: [],
+            badUrls: [],
+        }
+    }
+
+    async checkNegativeNews(news: News[]): Promise<{negativeNews: CheckedNews[], positiveNews: CheckedNews[]}> {
+        return {
+            negativeNews: [],
+            positiveNews: []
+        }
+    }
+
+    async reportPositiveNews(positiveNews: CheckedNews[]) {
+
+    }
+
+    async filterNews(negativeNews: CheckedNews[], subjectName: string): Promise<{tp: Tp, fp: Fp}> {
+        return {
+            tp: '',
+            fp: ''
+        }
+    }
+
+    async reportFp(fp: Fp) {
+
+    }
+
+    async reportTp(tp: Tp) {
+
+    }
+
+    async finalConclusion(tp: Tp, fp: Fp, positiveNews: CheckedNews[], name: string): Promise<NewsScreeningResultModel> {
         const result: NewsScreeningResultModel = {
             negativeNews: [],
             nonNegativeNews: [],
@@ -321,9 +477,4 @@ export class NegativeNewsImpl implements NegativeNewsApi {
 
         return result;
     }
-
-    async search() {
-
-    }
-
 }

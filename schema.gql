@@ -134,7 +134,9 @@ type Query {
   listEntityTypes: [FormOption!]!
   listIndustryTypes: [FormOption!]!
   listQuestions: [DataExtractionQuestion!]!
+  screenNews(country: String, dateOfBirth: String, name: String!): NegativeScreening!
   summarize(name: String!): SummaryResult!
+  validateUrl(url: String!): ValidatedUrl!
 }
 
 input ReviewCaseInput {
@@ -151,4 +153,9 @@ type Subscription {
 
 type SummaryResult {
   result: String!
+}
+
+type ValidatedUrl {
+  isValid: Boolean!
+  link: String!
 }
