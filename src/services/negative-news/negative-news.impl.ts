@@ -362,6 +362,7 @@ const buildNegNewsConfig = (): NegativeNewsConfig => {
 
 interface ValidatedSearchResult extends SearchResult {
     isValid: boolean;
+    content?: string | Buffer;
 }
 
 interface News {}
@@ -381,9 +382,8 @@ export class NegativeNewsImpl implements NegativeNewsApi {
 
         await this.reportBadUrls(badUrls);
 
-        const {news, badUrls: moreBadUrls} = await this.scrapeNews(validUrls);
+        const {negativeNews, positiveNews} = await this.checkNegativeNews(validUrls)
 
-        const {negativeNews, positiveNews} = await this.checkNegativeNews(news)
         await this.reportPositiveNews(positiveNews)
         const {tp, fp} = await this.filterNews(negativeNews, person.name)
         await this.reportFp(fp)
@@ -421,22 +421,14 @@ export class NegativeNewsImpl implements NegativeNewsApi {
         }
     }
 
-    async validateUrl<T extends {link: string}, R extends T & {isValid: boolean}>(data: T): Promise<R> {
-        const isValid = await isValidUrl(data.link)
+    async validateUrl<T extends {link: string}, R extends T & {isValid: boolean, content?: string}>(data: T): Promise<R> {
+        const result: {isValid: boolean, content?: string | Buffer} = await isValidUrl(data.link)
 
-        return Object.assign({}, data, {isValid}) as any
+        return Object.assign({}, data, result) as any
     }
 
     async reportBadUrls(badUrls: ValidatedSearchResult[]) {
         console.log('Bad urls: ', badUrls);
-    }
-
-    async scrapeNews(urls: ValidatedSearchResult[]): Promise<{news: News[], badUrls: ValidatedSearchResult[]}> {
-
-        return {
-            news: [],
-            badUrls: [],
-        }
     }
 
     async checkNegativeNews(news: News[]): Promise<{negativeNews: CheckedNews[], positiveNews: CheckedNews[]}> {
