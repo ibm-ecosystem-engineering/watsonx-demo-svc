@@ -259,7 +259,6 @@ VN,Vietnam,HIGH,
 WF,Wallis & Futuna,HIGH,
 EH,Western Sahara,HIGH,
 YE,Yemen,REFER-SANCTIONS,
-YU,"Macedonia (Former Yugo Rep,)",HIGH,
 ZR,Zaire (Democratic Republic Of Congo),REFER-SANCTIONS,
 ZM,Zambia,HIGH,
 ZW,Zimbabwe,REFER-SANCTIONS,`
@@ -1022,6 +1021,20 @@ let entityTypes: FormOptionModel[];
 let industryTypes: FormOptionModel[];
 let countryTypes: FormOptionModel[];
 
+const distinct = (result: FormOptionModel[], current: FormOptionModel): FormOptionModel[] => {
+    const values = result.map(item => item.value.toLowerCase())
+
+    if (!values.includes(current.value.toLowerCase()))  {
+        result.push(current)
+    }
+
+    return result
+}
+
+const sortFormOptions = (a: FormOptionModel, b: FormOptionModel): number => {
+    return a.text.localeCompare(b.text)
+}
+
 export class MenuOptionsMock implements MenuOptionsApi {
     async getCountryList(): Promise<FormOptionModel[]> {
         if (countryTypes) {
@@ -1037,6 +1050,8 @@ export class MenuOptionsMock implements MenuOptionsApi {
                 text: '' + values[1],
             }))
             .filter(val => val.text !== 'description')
+            .reduce(distinct, [])
+            .sort(sortFormOptions)
     }
 
     async getEntityTypes(): Promise<FormOptionModel[]> {
@@ -1052,7 +1067,9 @@ export class MenuOptionsMock implements MenuOptionsApi {
                 value: '' + values[1],
                 text: '' + values[1],
             }))
-            .filter(val => val.value !== 'Code');
+            .filter(val => val.value !== 'Code')
+            .reduce(distinct, [])
+            .sort(sortFormOptions)
     }
 
     async getIndustries(): Promise<FormOptionModel[]> {
@@ -1068,6 +1085,8 @@ export class MenuOptionsMock implements MenuOptionsApi {
                 value: '' + values[2],
                 text: '' + values[2],
             }))
-            .filter(val => val.text !== 'Division');
+            .filter(val => val.text !== 'Division')
+            .reduce(distinct, [])
+            .sort(sortFormOptions)
     }
 }
