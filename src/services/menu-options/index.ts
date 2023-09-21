@@ -1,6 +1,4 @@
 import {MenuOptionsMock} from "./menu-options.mock";
-import {DataExtractionApi} from "../data-extraction";
-import {DataExtractionImpl} from "../data-extraction/data-extraction.impl";
 import {Provider} from "@nestjs/common";
 import {MenuOptionsApi} from "./menu-options.api";
 

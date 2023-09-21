@@ -134,6 +134,7 @@ type Query {
   listEntityTypes: [FormOption!]!
   listIndustryTypes: [FormOption!]!
   listQuestions: [DataExtractionQuestion!]!
+  summarize(name: String!): SummaryResult!
 }
 
 input ReviewCaseInput {
@@ -146,4 +147,8 @@ input ReviewCaseInput {
 type Subscription {
   extractDataObservable(customer: String!, questions: [DataExtractionQuestionIdInput!]!): [DataExtractionResult!]!
   subscribeToCases: [KycCase!]!
+}
+
+type SummaryResult {
+  result: String!
 }

@@ -1,6 +1,5 @@
 import {BehaviorSubject, Observable} from "rxjs";
 import {getType} from 'mime';
-import * as streamToBlob from 'stream-to-blob';
 import * as Stream from "stream";
 
 import {CaseNotFound, KycCaseManagementApi} from "./kyc-case-management.api";
@@ -26,9 +25,10 @@ import {
     Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory,
     customerRiskAssessmentConfig
 } from "../customer-risk-assessment";
-import {NegativeNewsApi, NewsScreeningResultModel} from "../negative-news";
-import {DefaultApiFactory, kycCaseSummaryConfig} from "../kyc-case-summary";
+import {NegativeNewsApi} from "../negative-news";
 import {NegativeNewsImpl} from "../negative-news/negative-news.impl";
+import {KycCaseSummaryApi} from "../kyc-case-summary";
+import {KycCaseSummaryImpl} from "../kyc-case-summary/kyc-case-summary.impl";
 
 const initialValue: KycCaseModel[] = [
     {
@@ -60,9 +60,10 @@ const initialValue: KycCaseModel[] = [
 export class KycCaseManagementMock implements KycCaseManagementApi {
     subject: BehaviorSubject<KycCaseModel[]> = new BehaviorSubject(initialValue);
 
-    constructor(private readonly negNewsService: NegativeNewsApi = new NegativeNewsImpl()) {
+    constructor(
+        private readonly negNewsService: NegativeNewsApi = new NegativeNewsImpl(),
+        private readonly kycSummaryService: KycCaseSummaryApi = new KycCaseSummaryImpl()) {
     }
-
 
     async listCases(): Promise<KycCaseModel[]> {
         return delay(1000, () => this.subject.value);
@@ -329,30 +330,15 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
     }
 
     async summarizeCase(kycCase: KycCaseModel): Promise<KycCaseSummaryModel> {
-        const config = kycCaseSummaryConfig();
-        const options = {baseURL: process.env.KYC_SUMMARY_BASE_PATH};
 
-        if (kycCase.caseSummary && !kycCase.caseSummary.error) {
-            return kycCase.caseSummary
-        }
-        const api = DefaultApiFactory(config);
-
-        const financialDoc: DocumentModel | undefined = this.findFinancialDoc(kycCase.documents)
-
-        if (financialDoc) {
-            console.log('Uploading financial document: ' + financialDoc.name)
-
-            const fileContents: Blob = new Blob([financialDoc.content], {type: getType(financialDoc.name)});
-            await api.uploadFinancialsPostForm(fileContents, options);
-        }
 
         console.log('Getting summary: ' + kycCase.customer.name)
 
-        const result = await api.requestSummaryPost({entity: kycCase.customer.name}, options);
+        const result = await this.kycSummaryService.summarize(kycCase.customer.name);
 
-        console.log('Summarize result: ', {summary: result.data});
+        console.log('Summarize result: ', {summary: result});
 
-        return {summary: result.data};
+        return {summary: result};
     }
 
     findFinancialDoc(documents: DocumentModel[]): DocumentModel | undefined {

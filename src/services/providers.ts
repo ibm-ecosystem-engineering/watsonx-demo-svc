@@ -6,6 +6,7 @@ import {dataExtractionProvider} from "./data-extraction";
 import {menuOptionsProvider} from "./menu-options";
 import {documentManagerProvider} from "./document-manager";
 import {negativeNewsProvider} from "./negative-news";
+import {kycCaseSummaryProvider} from "./kyc-case-summary";
 
 export * from './data-extraction';
 export * from './hello-world';
@@ -22,4 +23,5 @@ export const providers: Provider[] = [
     menuOptionsProvider,
     documentManagerProvider,
     negativeNewsProvider,
+    kycCaseSummaryProvider,
 ];
