@@ -29,6 +29,8 @@ import {NegativeNewsApi} from "../negative-news";
 import {NegativeNewsImpl} from "../negative-news/negative-news.impl";
 import {KycCaseSummaryApi} from "../kyc-case-summary";
 import {KycCaseSummaryImpl} from "../kyc-case-summary/kyc-case-summary.impl";
+import {DocumentManagerApi} from "../document-manager";
+import {DocumentManagerDiscovery} from "../document-manager/document-manager.discovery";
 
 const initialValue: KycCaseModel[] = [
     {
@@ -62,8 +64,9 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
 
     constructor(
         private readonly negNewsService: NegativeNewsApi = new NegativeNewsImpl(),
-        private readonly kycSummaryService: KycCaseSummaryApi = new KycCaseSummaryImpl()) {
-    }
+        private readonly kycSummaryService: KycCaseSummaryApi = new KycCaseSummaryImpl(),
+        private readonly documentManagerService: DocumentManagerApi = new DocumentManagerDiscovery()
+    ) {}
 
     async listCases(): Promise<KycCaseModel[]> {
         return delay(1000, () => this.subject.value);
@@ -108,13 +111,22 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
         const documentId = `${caseId}-${id}`;
         const content = await this.loadDocument(document);
 
-        const newDoc = {id: documentId, name: documentName, path: `${pathPrefix}${documentId}/${documentName}`, content};
+        const newDoc = await this.documentManagerService.uploadFile({
+            name: documentName,
+            parentId: caseId,
+            content: {buffer: content},
+            context: 'kyc-case',
+        })
 
-        currentCase.documents.push(newDoc);
+        // const newDoc = {id: documentId, name: documentName, path: `${pathPrefix}${documentId}/${documentName}`, content};
+
+        const caseDoc = Object.assign({}, newDoc, {path: `${pathPrefix}${newDoc.path}`, content})
+
+        currentCase.documents.push(caseDoc);
 
         this.subject.next(this.subject.value);
 
-        return newDoc;
+        return caseDoc;
     }
 
     async loadDocument(document: DocumentRef | DocumentContent | DocumentStream): Promise<Buffer> {
@@ -339,19 +351,5 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
         console.log('Summarize result: ', {summary: result});
 
         return {summary: result};
-    }
-
-    findFinancialDoc(documents: DocumentModel[]): DocumentModel | undefined {
-        const financialDocRegEx = /.*financial.*/ig
-        const annualDocRegEx = /.*annual.*/ig
-
-        const doc = first(documents
-            .filter(doc => financialDocRegEx.test(doc.name) || annualDocRegEx.test(doc.name)))
-
-        if (doc) {
-            return doc;
-        }
-
-        return documents.length > 0 ? documents[0] : undefined;
     }
 }

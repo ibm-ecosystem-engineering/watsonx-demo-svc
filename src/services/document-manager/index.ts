@@ -1,6 +1,7 @@
 import {Provider} from "@nestjs/common";
+
 import {DocumentManagerApi} from "./document-manager.api";
-import {DocumentManagerMock} from "./document-manager.mock";
+import {DocumentManagerDiscovery} from "./document-manager.discovery";
 
 export * from './document-manager.api';
 
@@ -11,7 +12,7 @@ const documentManagerApi = (): DocumentManagerApi => {
         return _instance;
     }
 
-    return _instance = new DocumentManagerMock();
+    return _instance = new DocumentManagerDiscovery();
 }
 
 export const documentManagerProvider: Provider = {

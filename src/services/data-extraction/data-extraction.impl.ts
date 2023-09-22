@@ -9,7 +9,7 @@ import {first, GenAiModel, GenerativeResponse} from "../../utils";
 import DiscoveryV2 = require("ibm-watson/discovery/v2");
 import {createDiscoveryV2} from "../../utils/discovery-v2";
 
-interface DataExtractionBackendConfig {
+export interface DataExtractionBackendConfig {
     identityUrl: string;
     wmlUrl: string;
     wmlApiKey: string;
@@ -23,6 +23,10 @@ interface DataExtractionBackendConfig {
     discoveryApiKey: string;
     discoveryVersion: string;
     discoveryProjectId: string;
+
+    kycProjectId: string;
+    kycCollectionId: string;
+    dataExtractionCollectionId: string;
 }
 
 export const buildDataExtractionBackendConfig = (): DataExtractionBackendConfig => {
@@ -42,6 +46,10 @@ export const buildDataExtractionBackendConfig = (): DataExtractionBackendConfig 
         discoveryApiKey: process.env.DISCOVERY_API_KEY,
         discoveryVersion: process.env.DISCOVERY_VERSION || '2020-08-30',
         discoveryProjectId: process.env.DISCOVERY_PROJECT_ID || '303aab25-cb4f-4b28-b8d2-30e23e39a37f',
+
+        kycProjectId: process.env.KYC_PROJECT_ID || '303aab25-cb4f-4b28-b8d2-30e23e39a37f',
+        kycCollectionId: process.env.KYC_COLLECTION_ID,
+        dataExtractionCollectionId: process.env.DATA_EXTRACTION_COLLECTION_ID || 'd2042924-7671-d0f5-0000-018a41a20ec1',
     }
 
     if (!config.wmlApiKey) {

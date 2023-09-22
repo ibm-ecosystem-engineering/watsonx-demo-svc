@@ -2,20 +2,39 @@ import {Body, Controller, Get, Param, Post, Res, StreamableFile, UploadedFile, U
 import {FileInterceptor} from "@nestjs/platform-express";
 import {getType} from "mime";
 
-import {DocumentOutputModel, KycCaseManagementApi} from "../../services";
+import {DocumentManagerApi, DocumentOutputModel, KycCaseManagementApi} from "../../services";
+import {FileUploadContext} from "../../models";
 
 @Controller('document')
 export class FileUploadController {
 
-    constructor(private readonly service: KycCaseManagementApi) {}
+    constructor(
+        private readonly service: KycCaseManagementApi,
+        private readonly documentManagerService: DocumentManagerApi,
+    ) {}
 
     @Post('upload')
     @UseInterceptors(FileInterceptor('file'))
-    async uploadFile(@Body() input: {name: string, parentId: string}, @UploadedFile() file: Express.Multer.File): Promise<DocumentOutputModel> {
+    async uploadFile(@Body() input: {name: string, parentId: string, context?: FileUploadContext}, @UploadedFile() file: Express.Multer.File): Promise<DocumentOutputModel> {
 
-        return this.service
-            .addDocumentToCase(input.parentId, input.name, {content: file.buffer}, '/document/')
-            .then(doc => ({id: doc.id, name: doc.name, path: `${doc.path}`}));
+        if (input.context === 'data-extraction') {
+            return this.documentManagerService
+                .uploadFile({
+                    name: input.name,
+                    parentId: input.parentId,
+                    context: input.context,
+                    content: file
+                })
+                .then(doc => ({
+                    name: doc.name,
+                    id: doc.id,
+                    path: `document/${doc.path}`
+                }))
+        } else {
+            return this.service
+                .addDocumentToCase(input.parentId, input.name, {content: file.buffer}, '/document/')
+                .then(doc => ({id: doc.id, name: doc.name, path: `${doc.path}`}));
+        }
     }
 
     @Get(':id/:name')
