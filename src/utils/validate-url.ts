@@ -15,3 +15,12 @@ export const isValidUrl = async (url: string): Promise<{isValid: boolean, conten
         }))
         .catch(err => ({isValid: false})))) || {isValid: false}
 }
+
+export const getUrlContent = async (url: string, content?: string | Buffer): Promise<string | Buffer> => {
+    if (content) {
+        return content;
+    }
+
+    return validateQueue.add(() => Axios.get(url)
+        .then(response => response.data))
+}

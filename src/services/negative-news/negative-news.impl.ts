@@ -1,11 +1,67 @@
 import ScrapeitSDK = require('@scrapeit-cloud/google-serp-api');
-
 import {NegativeNewsApi, NewsScreeningResultModel} from "./negative-news.api";
 import {PersonModel} from "../../models";
 import PQueue from "../../utils/p-queue";
-import {isValidUrl} from "../../utils";
+import {
+    GenAiModel,
+    GenerateFunction,
+    GenerativeInputParameters,
+    GenerativeResponse,
+    getUrlContent,
+    isValidUrl
+} from "../../utils";
+import {IamTokenManager} from "ibm-cloud-sdk-core";
+import {buildDataExtractionBackendConfig, DataExtractionBackendConfig} from "../data-extraction/data-extraction.impl";
 
 const queue = new PQueue({concurrency: 1});
+
+const topicRiskScoreConfig = {
+    "terrorism": 10,
+    "drug trafficking": 10,
+    "arms dealing": 10,
+    "terrorism financing": 10,
+    "stock manipulation": 9,
+    "money laundering": 10,
+    "financial crimes": 8,
+    "regulatory penalty": 7,
+    "bankruptcy": 9,
+    "jail": 8,
+    "arrest": 5,
+    "lawsuits": 4,
+    "warrant": 4,
+    "imprisonment": 5,
+    "legal proceedings": 4,
+    "rape": 9,
+    "crime": 9,
+    "criminal": 7,
+    "criminal proceedings": 7,
+    "corruption": 8,
+    "fraud": 8,
+    "hate": 7,
+    "sexual abuse": 7,
+    "illegal activities": 4
+};
+const filterConfig = []
+
+/*
+    params_classify = GenerateParams(decoding_method="greedy")
+    #params = GenerateParams(
+        #decoding_method="sample",
+        #max_new_tokens=10,
+        #min_new_tokens=1,
+        #stream=False,
+        #temperature=0.7,
+        #top_k=50,
+        #top_p=1,
+    #)
+
+    #genai_model = Model(model="google/flan-ul2", params=params, credentials=creds)
+    langchain_model_classify = LangChainInterface(model="google/flan-ul2", params=params_classify, credentials=creds)
+
+    params_summary = GenerateParams(decoding_method="greedy", repetition_penalty=2, min_new_tokens=80, max_new_tokens=200)
+    langchain_model_summary = LangChainInterface(model="google/flan-ul2", params=params_summary, credentials=creds)
+
+ */
 
 /*
                 data = search_func(query, num_results,api_key)
@@ -365,16 +421,57 @@ interface ValidatedSearchResult extends SearchResult {
     content?: string | Buffer;
 }
 
-interface News {}
+interface ScoredSearchResult extends ValidatedSearchResult {
+    negativeNewsTopics?: string[];
+    hasNegativeNews?: boolean;
+}
 
-interface CheckedNews {}
+interface SummarizedSearchResult extends ScoredSearchResult {
+    summary: string;
+}
 
 interface Tp {}
 
 interface Fp {}
 
 export class NegativeNewsImpl implements NegativeNewsApi {
+    backendConfig: DataExtractionBackendConfig;
+
+    constructor() {
+        this.backendConfig = buildDataExtractionBackendConfig();
+    }
+
+    buildClassifyGenerateFunction(genAiModel: GenAiModel): GenerateFunction {
+
+        const parameters: GenerativeInputParameters = {
+            decoding_method: 'greedy',
+            max_new_tokens: 5,
+            repetition_penalty: 2
+        }
+
+        return genAiModel.generateFunction({
+            modelId: 'google/flan-ul2',
+            parameters
+        })
+    }
+
+    buildSummarizeGenerateFunction(genAiModel: GenAiModel): GenerateFunction {
+        const parameters: GenerativeInputParameters = {
+            decoding_method: "greedy",
+            repetition_penalty: 2,
+            min_new_tokens: 80,
+            max_new_tokens: 200
+        }
+
+        return genAiModel.generateFunction({
+            parameters,
+            modelId: 'google/flan-ul2'
+        })
+    }
+
     async screenPerson(person: PersonModel): Promise<NewsScreeningResultModel> {
+
+        const {genAiModel} = await this.getBackend();
 
         const data: SearchResult[]  = await this.search(person.name);
 
@@ -382,15 +479,37 @@ export class NegativeNewsImpl implements NegativeNewsApi {
 
         await this.reportBadUrls(badUrls);
 
-        const {negativeNews, positiveNews} = await this.checkNegativeNews(validUrls)
+        const classify: GenerateFunction = this.buildClassifyGenerateFunction(genAiModel);
+        const summarize: GenerateFunction = this.buildSummarizeGenerateFunction(genAiModel);
 
-        await this.reportPositiveNews(positiveNews)
-        const {tp, fp} = await this.filterNews(negativeNews, person.name)
+        const {negativeNews, positiveNews} = await this.checkAllNegativeNews(validUrls, classify);
+
+        await this.reportPositiveNews(positiveNews, summarize);
+
+        const {tp, fp} = await this.filterAllNews(negativeNews, person.name, classify)
         await this.reportFp(fp)
         await this.reportTp(tp);
         const result = this.finalConclusion(tp, fp, positiveNews, person.name)
 
         return result;
+    }
+
+    async getBackend(): Promise<{genAiModel: GenAiModel}> {
+
+        const accessToken = await new IamTokenManager({
+            apikey: this.backendConfig.wmlApiKey,
+            url: this.backendConfig.identityUrl,
+        }).getToken()
+
+        const genAiModel: GenAiModel = new GenAiModel({
+            accessToken,
+            endpoint: this.backendConfig.wmlUrl,
+            projectId: this.backendConfig.wmlProjectId,
+        })
+
+        return {
+            genAiModel
+        }
     }
 
     async search(query: string): Promise<SearchResult[]> {
@@ -431,21 +550,87 @@ export class NegativeNewsImpl implements NegativeNewsApi {
         console.log('Bad urls: ', badUrls);
     }
 
-    async checkNegativeNews(news: News[]): Promise<{negativeNews: CheckedNews[], positiveNews: CheckedNews[]}> {
+    async checkAllNegativeNews(news: ValidatedSearchResult[], generate: GenerateFunction): Promise<{negativeNews: ScoredSearchResult[], positiveNews: ScoredSearchResult[]}> {
+
+        const results: ScoredSearchResult[] = await Promise.all(news.map(val => this.checkNegativeNews(val, generate)))
+
         return {
-            negativeNews: [],
-            positiveNews: []
+            negativeNews: results.filter(result => result.hasNegativeNews),
+            positiveNews: results.filter(result => !result.hasNegativeNews)
         }
     }
 
-    async reportPositiveNews(positiveNews: CheckedNews[]) {
+    async checkNegativeNews(news: ValidatedSearchResult, generate: (input: string) => Promise<GenerativeResponse>): Promise<ScoredSearchResult> {
+        const topics = Object.keys(topicRiskScoreConfig);
+        const topicList = topics.join(', ');
 
+        const content: string | Buffer = await getUrlContent(news.link, news.content);
+
+        const negativeNewsPrompt = `From the context provided identify if there is any negative news or news related to ${topicList}, etc present or not. Provide a truthful answer in yes or no : ${content.toString()}`;
+
+        const {generatedText: negativeNewsResult} = await generate(negativeNewsPrompt);
+
+        if (negativeNewsResult === 'yes') {
+            const negativeNewsTopics = (await Promise.all(
+                topics.map(async (topic) => {
+                    const topicPrompt = `From the context provided about news item can you suggest this news related to ${topic} or not. Provide a truthful answer in yes or no : ${content.toString()}`
+
+                    const {generatedText: topicResult} = await generate(topicPrompt);
+
+                    if (topicResult === 'yes') {
+                        return topic;
+                    } else {
+                        return undefined;
+                    }
+                })))
+                .filter(topic => !!topic)
+
+            return Object.assign({}, news, {negativeNewsTopics, hasNegativeNews: true})
+        } else {
+            return news;
+        }
     }
 
-    async filterNews(negativeNews: CheckedNews[], subjectName: string): Promise<{tp: Tp, fp: Fp}> {
+    async reportPositiveNews(positiveNews: ScoredSearchResult[], generate: GenerateFunction): Promise<SummarizedSearchResult[]> {
+
+        return Promise.all(positiveNews.map(news => this.summarizeNews(news, generate)))
+    }
+
+    async summarizeNews(news: ScoredSearchResult, generate: GenerateFunction): Promise<SummarizedSearchResult> {
+        const content: string | Buffer = await getUrlContent(news.link, news.content);
+
+        const prompt = `Summarize the text in 2 or 3 sentences : ${content}`;
+
+        const {generatedText: summary} = await generate(prompt);
+
+        return Object.assign({}, news, {summary});
+    }
+
+    async filterAllNews(negativeNews: ScoredSearchResult[], subjectName: string, generate: GenerateFunction): Promise<{tp: Tp, fp: Fp}> {
+
+        const result = Promise.all(
+            negativeNews.map(news => this.filterNews(news, subjectName, generate))
+        )
+
+
         return {
             tp: '',
             fp: ''
+        }
+    }
+
+    async filterNews(news: ScoredSearchResult, subjectName: string, generate: GenerateFunction) {
+
+        const content: string | Buffer = await getUrlContent(news.link, news.content)
+
+        if (filterConfig.length === 0) {
+            const prompt = `From the news text provided identify if the person ${subjectName} is mentioned anywhere in the text. Provide a truthful answer in yes or no. If not sure then say not sure : ${content}`
+
+            const {generatedText: response} = await generate(prompt);
+
+            if (response === 'yes') {
+
+            }
         }
     }
 

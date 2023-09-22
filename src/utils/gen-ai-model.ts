@@ -5,6 +5,7 @@ const queue = new PQueue({concurrency: 4});
 
 export interface GenerativeInputParameters {
     decoding_method: string;
+    min_new_tokens?: number;
     max_new_tokens: number;
     repetition_penalty: number;
 }
@@ -39,6 +40,8 @@ interface GenerativeBackendResponseResult {
     stop_reason: string;
 }
 
+export type GenerateFunction = (input: string) => Promise<GenerativeResponse>;
+
 export class GenAiModel {
     private readonly client: AxiosInstance;
     private readonly projectId?: string;
@@ -56,6 +59,10 @@ export class GenAiModel {
 
         this.projectId = config.projectId;
         this.url = config.endpoint;
+    }
+
+    generateFunction(config: Omit<GenerativeInput, 'input'>): GenerateFunction {
+        return (input: string) => this.generate(Object.assign({}, config, {input}))
     }
 
     async generate(input: GenerativeInput): Promise<GenerativeResponse> {
