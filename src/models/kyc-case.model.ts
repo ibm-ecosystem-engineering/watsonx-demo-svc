@@ -16,6 +16,7 @@ export interface KycCaseModel {
 export interface PersonModel {
     name: string;
     countryOfResidence: string;
+    dateOfBirth?: string;
 }
 
 export interface CustomerModel extends PersonModel {

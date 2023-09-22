@@ -10,8 +10,14 @@ export interface NewsScreeningResultModel {
 }
 
 export interface NewsItemModel {
-    topic: string;
-    url: string;
+    title: string;
+    link: string;
+    source: string;
+    snippet: string;
+    date: string;
+    negativeNewsTopics?: string[];
+    hasNegativeNews?: boolean;
+    summary?: string;
 }
 
 export abstract class NegativeNewsApi {

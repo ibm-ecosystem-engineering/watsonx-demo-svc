@@ -12,6 +12,7 @@ import {
 } from "../../utils";
 import {IamTokenManager} from "ibm-cloud-sdk-core";
 import {buildDataExtractionBackendConfig, DataExtractionBackendConfig} from "../data-extraction/data-extraction.impl";
+import dayjs from "dayjs";
 
 const queue = new PQueue({concurrency: 1});
 
@@ -369,15 +370,6 @@ def  final_conclusion(tp,fp, pos_news,subject_name, num_results):
 
  */
 
-interface SearchResult {
-    position: number;
-    title: string;
-    link: string;
-    source: string;
-    snippet: string;
-    date: string;
-}
-
 interface ScrapeitResponse {
     searchInformation: {
         totalResults: string;
@@ -416,6 +408,15 @@ const buildNegNewsConfig = (): NegativeNewsConfig => {
     return _config = tmp;
 }
 
+interface SearchResult {
+    position: number;
+    title: string;
+    link: string;
+    source: string;
+    snippet: string;
+    date: string;
+}
+
 interface ValidatedSearchResult extends SearchResult {
     isValid: boolean;
     content?: string | Buffer;
@@ -430,9 +431,15 @@ interface SummarizedSearchResult extends ScoredSearchResult {
     summary: string;
 }
 
-interface Tp {}
-
-interface Fp {}
+interface SearchResultMentions {
+    subject: boolean;
+    location?: boolean;
+    dateOfBirth?: boolean;
+    subjectAndAge?: boolean;
+}
+interface FilteredSearchResult extends SummarizedSearchResult {
+    mentions: SearchResultMentions
+}
 
 export class NegativeNewsImpl implements NegativeNewsApi {
     backendConfig: DataExtractionBackendConfig;
@@ -484,12 +491,13 @@ export class NegativeNewsImpl implements NegativeNewsApi {
 
         const {negativeNews, positiveNews} = await this.checkAllNegativeNews(validUrls, classify);
 
-        await this.reportPositiveNews(positiveNews, summarize);
+        const summarizedPositiveNews = await this.summarizeAllNews(positiveNews, summarize);
+        const summarizedNegativeNews = await this.summarizeAllNews(negativeNews, summarize);
 
-        const {tp, fp} = await this.filterAllNews(negativeNews, person.name, classify)
-        await this.reportFp(fp)
-        await this.reportTp(tp);
-        const result = this.finalConclusion(tp, fp, positiveNews, person.name)
+        const {tp, fp} = await this.filterAllNews(summarizedNegativeNews, person.name, classify, person)
+
+        const totalScreened = 0;
+        const result = this.finalConclusion(badUrls, tp, fp, positiveNews, person.name, totalScreened)
 
         return result;
     }
@@ -591,9 +599,9 @@ export class NegativeNewsImpl implements NegativeNewsApi {
         }
     }
 
-    async reportPositiveNews(positiveNews: ScoredSearchResult[], generate: GenerateFunction): Promise<SummarizedSearchResult[]> {
+    async summarizeAllNews(news: ScoredSearchResult[], generate: GenerateFunction): Promise<SummarizedSearchResult[]> {
 
-        return Promise.all(positiveNews.map(news => this.summarizeNews(news, generate)))
+        return Promise.all(news.map(news => this.summarizeNews(news, generate)))
     }
 
     async summarizeNews(news: ScoredSearchResult, generate: GenerateFunction): Promise<SummarizedSearchResult> {
@@ -606,52 +614,114 @@ export class NegativeNewsImpl implements NegativeNewsApi {
         return Object.assign({}, news, {summary});
     }
 
-    async filterAllNews(negativeNews: ScoredSearchResult[], subjectName: string, generate: GenerateFunction): Promise<{tp: Tp, fp: Fp}> {
+    async filterAllNews(negativeNews: SummarizedSearchResult[], subjectName: string, generate: GenerateFunction, filterParams?: {countryOfResidence?: string, dateOfBirth?: string}): Promise<{tp: FilteredSearchResult[], fp: FilteredSearchResult[]}> {
 
-        const result = Promise.all(
-            negativeNews.map(news => this.filterNews(news, subjectName, generate))
+        const result = await Promise.all(
+            negativeNews.map(news => this.filterNews(news, subjectName, generate, filterParams))
         )
 
-
         return {
-            tp: '',
-            fp: ''
+            tp: result.filter(val => (val.mentions.subject === true && val.mentions.location !== false && val.mentions.dateOfBirth !== false && val.mentions.subjectAndAge !== false)),
+            fp: result.filter(val => val.mentions.subject === false || val.mentions.location === false || val.mentions.dateOfBirth === false || val.mentions.subjectAndAge === false)
         }
     }
 
-    async filterNews(news: ScoredSearchResult, subjectName: string, generate: GenerateFunction) {
+    async filterNews(news: SummarizedSearchResult, subjectName: string, generate: GenerateFunction, filterParams?: {countryOfResidence?: string, dateOfBirth?: string}): Promise<FilteredSearchResult> {
 
         const content: string | Buffer = await getUrlContent(news.link, news.content)
 
-        if (filterConfig.length === 0) {
-            const prompt = `From the news text provided identify if the person ${subjectName} is mentioned anywhere in the text. Provide a truthful answer in yes or no. If not sure then say not sure : ${content}`
+        const subjectPrompt = `From the news text provided identify if the person ${subjectName} is mentioned anywhere in the text. Provide a truthful answer in yes or no. If not sure then say not sure : ${content}`
 
-            const {generatedText: response} = await generate(prompt);
+        const {generatedText: subjectResponse} = await generate(subjectPrompt);
 
-            if (response === 'yes') {
+        const mentions: SearchResultMentions = {
+            subject: (subjectResponse === 'yes')
+        }
 
+        if (filterParams) {
+            if (filterParams.countryOfResidence) {
+                const countryPrompt = `From the news text provided identify if there is any mention of ${filterParams.countryOfResidence} anywhere in the text. Provide a truthful answer in yes or no. If not sure then say not sure : ${content}`
+
+                const {generatedText: countryResponse} = await generate(countryPrompt);
+
+                mentions.location = countryResponse === 'yes';
+            }
+
+            if (filterParams.dateOfBirth) {
+                const dateOfBirthPrompt = `From the news text provided identify if there is any mention of ${filterParams.dateOfBirth} anywhere in the text. Provide a truthful answer in yes or no. If not sure then say not sure : ${content}`
+
+                const {generatedText: dobResponse} = await generate(dateOfBirthPrompt);
+
+                mentions.dateOfBirth = dobResponse === 'yes';
+            }
+
+            if (filterParams.dateOfBirth) {
+                const today = dayjs()
+                const dob = dayjs(filterParams.dateOfBirth)
+
+                const ageYrs = today
+                    .subtract(dob.get('month'), 'month')
+                    .subtract(dob.get('day'), 'day')
+                    .subtract(dob.get('year'), 'year')
+                    .get('years')
+
+                const agePrompt = `From the news text provided identify if the age of ${subjectName} is nearly around ${ageYrs} years or so. Provide a truthful answer in yes or no. If not sure then say not sure : ${content}`
+
+                const {generatedText: ageResponse} = await generate(agePrompt);
+
+                mentions.dateOfBirth = ageResponse === 'yes';
             }
         }
+
+        return Object.assign({}, news, {mentions})
     }
 
-    async reportFp(fp: Fp) {
+    async finalConclusion(badUrls: ValidatedSearchResult[], negativeNews: FilteredSearchResult[], unrelatedNews: FilteredSearchResult[], nonNegativeNews: ScoredSearchResult[], subject: string, totalScreened: number): Promise<NewsScreeningResultModel> {
 
-    }
+        const conclusion: string[] = []
 
-    async reportTp(tp: Tp) {
+        conclusion.push(`Total News Screened: ${totalScreened}  Neg-news: ${negativeNews.length}  Un-related news: ${unrelatedNews.length}  Non-neg news: ${nonNegativeNews.length}  Bad url: ${badUrls.length}`)
 
-    }
+        const tpTopics = this.extractTopics(negativeNews)
+        const fpTopics = this.extractTopics(unrelatedNews)
 
-    async finalConclusion(tp: Tp, fp: Fp, positiveNews: CheckedNews[], name: string): Promise<NewsScreeningResultModel> {
+        const conclusionTextTpTopic = tpTopics.length > 0
+            ? `Screening process has found ${negativeNews.length} negative news. Topics identified are - ${tpTopics.join(', ')}.`
+            : ''
+        conclusion.push(conclusionTextTpTopic)
+
+        const conclusionTextFpTopic = fpTopics.length > 0
+            ? `Screening process has found ${unrelatedNews.length} unrelated news. Topics identified are - ${fpTopics.join(', ')}.`
+            : ''
+        conclusion.push(conclusionTextFpTopic)
+
+        if (negativeNews.length > 0) {
+            conclusion.push(`The screening process has found that there are Negative News present about ${subject}. Initiate L2 level Screening.`)
+        } else if (unrelatedNews.length > 0) {
+            conclusion.push(`Even if the screening process has found that there are Negative News present but those seems not related to ${subject}. Further Manual Screening is recommended.`)
+        } else {
+            conclusion.push(`There are No Negative News found about ${subject}.`)
+        }
+
         const result: NewsScreeningResultModel = {
-            negativeNews: [],
-            nonNegativeNews: [],
-            subject: "",
-            summary: "",
-            totalScreened: 0,
-            unrelatedNews: []
+            negativeNews,
+            nonNegativeNews,
+            subject,
+            summary: conclusion.join('\n'),
+            totalScreened,
+            unrelatedNews
         };
 
         return result;
+    }
+
+    extractTopics(vals: FilteredSearchResult[]) {
+        return vals
+            .map(val => val.negativeNewsTopics)
+            .reduce((topics: string[], current: string[]) => {
+                const newTopics = current.filter(val => !topics.includes(val));
+
+                return topics.concat(...newTopics);
+            }, [])
     }
 }
