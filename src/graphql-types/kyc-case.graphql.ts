@@ -5,7 +5,7 @@ import {
     CustomerRiskAssessmentModel, DocumentInputModel,
     DocumentModel,
     KycCaseModel, KycCaseSummaryModel,
-    NegativeScreeningModel, PersonModel, ReviewCaseModel
+    NegativeScreeningModel, NewsItemModel, PersonModel, ReviewCaseModel
 } from "../models";
 
 @ObjectType({description: 'KYC Customer'})
@@ -44,9 +44,45 @@ export class Document implements DocumentModel {
 @ObjectType({ description: 'Negative screening' })
 export class NegativeScreening implements NegativeScreeningModel {
     @Field()
-    result: string;
+    summary: string;
     @Field(() => String, {nullable: true})
     error?: string;
+    @Field(() => [NewsItem])
+    negativeNews: NewsItemModel[];
+    @Field(() => [NewsItem])
+    nonNegativeNews: NewsItemModel[];
+    @Field()
+    subject: string;
+    @Field()
+    totalScreened: number;
+    @Field(() => [NewsItem])
+    unrelatedNews: NewsItemModel[];
+    @Field()
+    negativeNewsCount: number;
+    @Field()
+    nonNegativeNewsCount: number;
+    @Field()
+    unrelatedNewsCount: number;
+}
+
+@ObjectType()
+export class NewsItem implements NewsItemModel {
+    @Field()
+    date: string;
+    @Field({nullable: true})
+    hasNegativeNews?: boolean;
+    @Field()
+    link: string;
+    @Field(() => [String], {nullable: true})
+    negativeNewsTopics?: string[];
+    @Field()
+    snippet: string;
+    @Field()
+    source: string;
+    @Field({nullable: true})
+    summary?: string;
+    @Field()
+    title: string;
 }
 
 @ObjectType({ description: 'Customer risk assessment' })

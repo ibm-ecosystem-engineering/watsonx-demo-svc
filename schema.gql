@@ -109,7 +109,26 @@ type Mutation {
 """Negative screening"""
 type NegativeScreening {
   error: String
-  result: String!
+  negativeNews: [NewsItem!]!
+  negativeNewsCount: Float!
+  nonNegativeNews: [NewsItem!]!
+  nonNegativeNewsCount: Float!
+  subject: String!
+  summary: String!
+  totalScreened: Float!
+  unrelatedNews: [NewsItem!]!
+  unrelatedNewsCount: Float!
+}
+
+type NewsItem {
+  date: String!
+  hasNegativeNews: Boolean
+  link: String!
+  negativeNewsTopics: [String!]
+  snippet: String!
+  source: String!
+  summary: String
+  title: String!
 }
 
 """KYC Person"""

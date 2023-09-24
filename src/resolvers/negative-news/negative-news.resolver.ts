@@ -24,9 +24,9 @@ export class NegativeNewsResolver {
     ) {
         const result = await this.service.screenPerson({name, countryOfResidence})
 
-        return {
-            result: ''
-        }
+        console.log('Result: ', result);
+
+        return result
     }
 
     @Query(() => ValidatedUrl)

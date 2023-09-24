@@ -258,7 +258,15 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
                 console.log('Error getting negative screening: ', {err})
 
                 subjectCase.negativeScreening = {
-                    result: 'N/A',
+                    subject: currentCase.customer.name,
+                    summary: 'N/A',
+                    totalScreened: 0,
+                    negativeNews: [],
+                    negativeNewsCount: 0,
+                    nonNegativeNews: [],
+                    nonNegativeNewsCount: 0,
+                    unrelatedNews: [],
+                    unrelatedNewsCount: 0,
                     error: err.message,
                 }
 
@@ -279,7 +287,15 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
                 console.log('Error getting counterparty negative screening: ', {err})
 
                 subjectCase.counterpartyNegativeScreening = {
-                    result: 'N/A',
+                    subject: currentCase.customer.name,
+                    summary: 'N/A',
+                    totalScreened: 0,
+                    negativeNews: [],
+                    negativeNewsCount: 0,
+                    nonNegativeNews: [],
+                    nonNegativeNewsCount: 0,
+                    unrelatedNews: [],
+                    unrelatedNewsCount: 0,
                     error: err.message,
                 }
 
@@ -312,8 +328,7 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
             return currentNews;
         }
 
-        return this.negNewsService.screenPerson(person)
-            .then(result => ({result: result.summary}))
+        return this.negNewsService.screenPerson(person);
     }
 
     async customerRiskAssessment(kycCase: KycCaseModel): Promise<CustomerRiskAssessmentModel> {

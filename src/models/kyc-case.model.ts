@@ -30,9 +30,29 @@ export interface DocumentModel extends DocumentInputModel {
 }
 
 export interface NegativeScreeningModel {
-    result: string;
+    subject: string;
+    totalScreened: number;
+    negativeNewsCount: number;
+    negativeNews: NewsItemModel[];
+    nonNegativeNewsCount: number;
+    nonNegativeNews: NewsItemModel[];
+    unrelatedNewsCount: number;
+    unrelatedNews: NewsItemModel[];
+    summary: string;
     error?: string;
 }
+
+export interface NewsItemModel {
+    title: string;
+    link: string;
+    source: string;
+    snippet: string;
+    date: string;
+    negativeNewsTopics?: string[];
+    hasNegativeNews?: boolean;
+    summary?: string;
+}
+
 
 export interface CustomerRiskAssessmentModel {
     rating: string;

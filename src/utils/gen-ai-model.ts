@@ -69,13 +69,15 @@ export class GenAiModel {
         return queue.add(() => this.generateInternal(input)) as any;
     }
 
-    private async generateInternal(input: GenerativeInput): Promise<GenerativeResponse> {
+    private async generateInternal(params: GenerativeInput): Promise<GenerativeResponse> {
+        const input = params.input.slice(0, Math.min(4096, params.input.length))
+
         return this.client
             .post<GenerativeBackendResponse>(this.url, {
-                model_id: input.modelId,
-                input: input.input,
-                parameters: input.parameters,
-                project_id: input.projectId || this.projectId,
+                model_id: params.modelId,
+                input,
+                parameters: params.parameters,
+                project_id: params.projectId || this.projectId,
             })
             .then(result => {
                 return {generatedText: result.data.results[0].generated_text};

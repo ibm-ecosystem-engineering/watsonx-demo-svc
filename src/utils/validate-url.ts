@@ -1,17 +1,22 @@
 import Axios from 'axios';
-import {RecursiveUrlLoader} from "langchain/dist/document_loaders/web/recursive_url";
+import {RecursiveUrlLoader} from "langchain/document_loaders/web/recursive_url";
+import { compile } from "html-to-text";
+
 
 import PQueue from "./p-queue";
 import {first} from "./first";
 
 const validateQueue = new PQueue({concurrency: 5})
+const contentQueue = new PQueue({concurrency: 5})
 
 export const isValidUrl = async (url: string): Promise<{isValid: boolean, content?: string | Buffer}> => {
-    return (await validateQueue.add(() => Axios.get(url)
-        .then(response => ({
-            isValid: true,
-            content: undefined,
-        }))
+    return (await validateQueue.add(() => Axios.get(url, {timeout: 5000})
+        .then(response => {
+            return {
+                isValid: true,
+                content: undefined,
+            }
+        })
         .then(async (data) => {
             if (!data.isValid) {
                 return data;
@@ -34,11 +39,21 @@ export const getUrlContent = async (url: string, content?: string | Buffer): Pro
         return content;
     }
 
-    return validateQueue.add(async () => {
-        const loader = new RecursiveUrlLoader(url, {maxDepth: 1});
+    const compiledConvert = compile({
+        wordwrap: 130,
+        selectors: [
+            { selector: 'a', format: 'skip' },
+        ]
+    }); // returns (text: string) => string;
 
-        const doc = first(await loader.load());
+    return (await contentQueue.add(async () => {
+        const loader = new RecursiveUrlLoader(url, {
+            maxDepth: 0,
+            extractor: compiledConvert,
+        });
 
-        return doc?.pageContent || ''
-    }) as Promise<string | Buffer>
+        const doc = first(await loader.load().catch(() => []));
+
+        return (doc?.pageContent || '').replace(/\n+/g, '\n')
+    })) as Buffer | string
 }

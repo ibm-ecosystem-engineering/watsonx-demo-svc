@@ -1,6 +1,9 @@
 import ScrapeitSDK = require('@scrapeit-cloud/google-serp-api');
-import {NegativeNewsApi, NewsScreeningResultModel} from "./negative-news.api";
-import {PersonModel} from "../../models";
+import {IamTokenManager} from "ibm-cloud-sdk-core";
+import dayjs from "dayjs";
+
+import {NegativeNewsApi} from "./negative-news.api";
+import {NegativeScreeningModel, PersonModel} from "../../models";
 import PQueue from "../../utils/p-queue";
 import {
     GenAiModel,
@@ -10,9 +13,8 @@ import {
     getUrlContent,
     isValidUrl
 } from "../../utils";
-import {IamTokenManager} from "ibm-cloud-sdk-core";
 import {buildDataExtractionBackendConfig, DataExtractionBackendConfig} from "../data-extraction/data-extraction.impl";
-import dayjs from "dayjs";
+import {SearchResult, webScrapeApi, WebScrapeApi} from "../web-scrape";
 
 const queue = new PQueue({concurrency: 1});
 
@@ -42,7 +44,6 @@ const topicRiskScoreConfig = {
     "sexual abuse": 7,
     "illegal activities": 4
 };
-const filterConfig = []
 
 /*
     params_classify = GenerateParams(decoding_method="greedy")
@@ -408,14 +409,6 @@ const buildNegNewsConfig = (): NegativeNewsConfig => {
     return _config = tmp;
 }
 
-interface SearchResult {
-    position: number;
-    title: string;
-    link: string;
-    source: string;
-    snippet: string;
-    date: string;
-}
 
 interface ValidatedSearchResult extends SearchResult {
     isValid: boolean;
@@ -444,7 +437,7 @@ interface FilteredSearchResult extends SummarizedSearchResult {
 export class NegativeNewsImpl implements NegativeNewsApi {
     backendConfig: DataExtractionBackendConfig;
 
-    constructor() {
+    constructor(private readonly service: WebScrapeApi = webScrapeApi()) {
         this.backendConfig = buildDataExtractionBackendConfig();
     }
 
@@ -476,7 +469,7 @@ export class NegativeNewsImpl implements NegativeNewsApi {
         })
     }
 
-    async screenPerson(person: PersonModel): Promise<NewsScreeningResultModel> {
+    async screenPerson(person: PersonModel): Promise<NegativeScreeningModel> {
 
         const {genAiModel} = await this.getBackend();
 
@@ -484,8 +477,8 @@ export class NegativeNewsImpl implements NegativeNewsApi {
 
         const {validUrls, badUrls} = await this.validateUrls(data);
 
-        await this.reportBadUrls(badUrls);
-
+        // await this.reportBadUrls(badUrls);
+        //
         const classify: GenerateFunction = this.buildClassifyGenerateFunction(genAiModel);
         const summarize: GenerateFunction = this.buildSummarizeGenerateFunction(genAiModel);
 
@@ -496,8 +489,8 @@ export class NegativeNewsImpl implements NegativeNewsApi {
 
         const {tp, fp} = await this.filterAllNews(summarizedNegativeNews, person.name, classify, person)
 
-        const totalScreened = 0;
-        const result = this.finalConclusion(badUrls, tp, fp, positiveNews, person.name, totalScreened)
+        const totalScreened = data.length;
+        const result = this.finalConclusion(badUrls, tp, fp, summarizedPositiveNews, person.name, totalScreened)
 
         return result;
     }
@@ -523,8 +516,6 @@ export class NegativeNewsImpl implements NegativeNewsApi {
     async search(query: string): Promise<SearchResult[]> {
         const negNewsConfig = buildNegNewsConfig();
 
-        const client = new ScrapeitSDK(negNewsConfig.apiKey)
-
         const params = {
             "q": query,
             "gl": "us",
@@ -532,9 +523,11 @@ export class NegativeNewsImpl implements NegativeNewsApi {
             "num": negNewsConfig.numResults,
             "tbm": "nws",
         }
-        const response: ScrapeitResponse = await queue.add(() => client.scrape(params))
 
-        return response.newsResults;
+        return queue.add(() => this.service.scrape(params)).catch(err => {
+            console.log('Error accessing Scrapeit: ', {err})
+            throw err
+        }) as Promise<SearchResult[]>
     }
 
     async validateUrls(data: SearchResult[]): Promise<{validUrls: ValidatedSearchResult[], badUrls: ValidatedSearchResult[]}> {
@@ -676,7 +669,7 @@ export class NegativeNewsImpl implements NegativeNewsApi {
         return Object.assign({}, news, {mentions})
     }
 
-    async finalConclusion(badUrls: ValidatedSearchResult[], negativeNews: FilteredSearchResult[], unrelatedNews: FilteredSearchResult[], nonNegativeNews: ScoredSearchResult[], subject: string, totalScreened: number): Promise<NewsScreeningResultModel> {
+    async finalConclusion(badUrls: ValidatedSearchResult[], negativeNews: FilteredSearchResult[], unrelatedNews: FilteredSearchResult[], nonNegativeNews: SummarizedSearchResult[], subject: string, totalScreened: number): Promise<NegativeScreeningModel> {
 
         const conclusion: string[] = []
 
@@ -703,13 +696,16 @@ export class NegativeNewsImpl implements NegativeNewsApi {
             conclusion.push(`There are No Negative News found about ${subject}.`)
         }
 
-        const result: NewsScreeningResultModel = {
+        const result: NegativeScreeningModel = {
             negativeNews,
+            negativeNewsCount: negativeNews.length,
             nonNegativeNews,
+            nonNegativeNewsCount: nonNegativeNews.length,
             subject,
             summary: conclusion.join('\n'),
             totalScreened,
-            unrelatedNews
+            unrelatedNews,
+            unrelatedNewsCount: unrelatedNews.length,
         };
 
         return result;
