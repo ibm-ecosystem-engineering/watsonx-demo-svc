@@ -31,5 +31,7 @@ export class DataExtractionResult implements DataExtractionResultModel {
     expectedResponse: string;
     @Field()
     watsonxResponse: string;
+    @Field()
+    prompt: string;
 }
 

@@ -5,6 +5,7 @@ export interface DataExtractionQuestionModel {
 }
 
 export interface DataExtractionResultModel extends DataExtractionQuestionModel {
+    prompt: string;
     expectedResponse: string;
     watsonxResponse: string;
 }

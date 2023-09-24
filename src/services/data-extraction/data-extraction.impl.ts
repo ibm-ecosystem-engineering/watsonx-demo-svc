@@ -88,7 +88,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
 
         const text = await this.queryDiscovery(customer, config, backends);
 
-        const watsonxResponse = await this.generateResponse(customer, config, text, backends);
+        const {watsonxResponse, prompt} = await this.generateResponse(customer, config, text, backends);
 
         return {
             id: config.id,
@@ -96,6 +96,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
             inScope: config.inScope,
             expectedResponse: config.expectedResponse,
             watsonxResponse,
+            prompt,
         }
     }
 
@@ -140,7 +141,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
             .join(' ')
     }
 
-    async generateResponse(customer: string, config: DataExtractionConfig, text: string, backends: WatsonBackends): Promise<string> {
+    async generateResponse(customer: string, config: DataExtractionConfig, text: string, backends: WatsonBackends): Promise<{watsonxResponse: string, prompt: string}> {
 
         const prompt = (config.prompt || `From below text find answer for ${config.question} ${customer}`).replace('#', customer);
         // const prompt = (`From below text find answer for ${config.question} ${customer}`).replace('#', customer);
@@ -160,7 +161,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
 
         console.log('2. Text generated from watsonx.ai:', {prompt, generatedText: result.generatedText, input})
 
-        return result.generatedText;
+        return {watsonxResponse: result.generatedText, prompt: input};
     }
 
     async getBackends(): Promise<WatsonBackends> {
