@@ -18,13 +18,24 @@ const getCache = async (): Promise<SearchResultCache> => {
     }
 
     const fileContent = await promises.readFile(filepath)
+        .catch(err => {
+            console.log(`Error loading web scrape cache (${filepath})`, err)
+
+            return '{}'
+        })
         .then(buf => buf.toString())
 
     return JSON.parse(fileContent);
 }
 
 const writeCache = async (cache: SearchResultCache): Promise<void> => {
-    return promises.writeFile(filepath, JSON.stringify(cache, null, ' '));
+    return promises
+        .writeFile(filepath, JSON.stringify(cache, null, ' '))
+        .catch(err => {
+            console.log(`Error saving web scrape cache (${filepath})`, err)
+
+            return undefined
+        });
 }
 
 export class WebScrapeLocal implements WebScrapeWritableApi {
