@@ -1,5 +1,6 @@
 import Axios, {AxiosInstance} from 'axios';
 import PQueue from "./p-queue";
+import {delay} from "./delay";
 
 const queue = new PQueue({concurrency: 2});
 
@@ -69,7 +70,7 @@ export class GenAiModel {
         return queue.add(() => this.generateInternal(input)) as any;
     }
 
-    private async generateInternal(params: GenerativeInput): Promise<GenerativeResponse> {
+    private async generateInternal(params: GenerativeInput, retryCount: number = 0): Promise<GenerativeResponse> {
         const input = params.input.slice(0, Math.min(4096, params.input.length))
 
         return this.client
@@ -83,6 +84,12 @@ export class GenAiModel {
                 return {generatedText: result.data.results[0].generated_text};
             })
             .catch(err => {
+                const status = err.response?.status;
+                if (status == 429 && retryCount < 4) {
+                    console.log('Too many requests!!! Retrying: ' + (retryCount + 1))
+                    return delay(1000 * Math.random(), () => this.generateInternal(params, retryCount + 1))
+                }
+
                 console.log('Error generating text: ', err);
                 throw err;
             })
