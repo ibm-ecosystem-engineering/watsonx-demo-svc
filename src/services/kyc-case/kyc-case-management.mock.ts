@@ -222,7 +222,7 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
                 .filter(val => val.id === currentCase.id))
         }
 
-        this.customerRiskAssessment(currentCase)
+        await this.customerRiskAssessment(currentCase)
             .then(riskAssessment => {
                 const subjectCase = getSubjectCase(currentCase);
 
@@ -244,7 +244,7 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
                 this.subject.next(this.subject.value);
             });
 
-        this.negativeNews(currentCase.customer, currentCase.negativeScreening)
+        await this.negativeNews(currentCase.customer, currentCase.negativeScreening)
             .then(news => {
                 const subjectCase = getSubjectCase(currentCase);
 
@@ -273,7 +273,7 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
                 this.subject.next(this.subject.value);
             })
 
-        this.negativeNews(currentCase.counterparty, currentCase.counterpartyNegativeScreening)
+        await this.negativeNews(currentCase.counterparty, currentCase.counterpartyNegativeScreening)
             .then(news => {
                 const subjectCase = getSubjectCase(currentCase);
 
@@ -302,7 +302,7 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
                 this.subject.next(this.subject.value);
             })
 
-        this.summarizeCase(currentCase)
+        await this.summarizeCase(currentCase)
             .then(summarize => {
                 const subjectCase = getSubjectCase(currentCase);
 

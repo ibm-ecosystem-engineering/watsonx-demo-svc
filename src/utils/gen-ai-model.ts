@@ -1,7 +1,7 @@
 import Axios, {AxiosInstance} from 'axios';
 import PQueue from "./p-queue";
 
-const queue = new PQueue({concurrency: 4});
+const queue = new PQueue({concurrency: 2});
 
 export interface GenerativeInputParameters {
     decoding_method: string;
