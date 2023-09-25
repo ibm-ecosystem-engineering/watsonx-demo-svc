@@ -1,6 +1,7 @@
 import Axios from 'axios';
 
 import {KycCaseSummaryApi} from "./kyc-case-summary.api";
+import PQueue from "../../utils/p-queue";
 
 
 interface KycCaseSummaryConfig {
@@ -18,17 +19,19 @@ const buildKycCaseSummaryConfig = () => {
     }
 }
 
+const queue = new PQueue({concurrency: 1});
+
 export class KycCaseSummaryImpl implements KycCaseSummaryApi {
     summarize(name: string): Promise<string> {
         const {url} = buildKycCaseSummaryConfig();
 
-        return Axios.get(
+        return queue.add(() => Axios.get(
             `${url}/${name}`,
             {
                 headers: {
                     'Content-Type': 'application/json'
                 }
             })
-            .then(response => response.data);
+            .then(response => response.data));
     }
 }
