@@ -3,7 +3,7 @@ import {
     ApproveCaseModel,
     CustomerModel,
     CustomerRiskAssessmentModel, DocumentInputModel,
-    DocumentModel,
+    DocumentModel, KycCaseChangeEventModel, KycCaseChangeEventThinModel, KycCaseChangeType,
     KycCaseModel, KycCaseSummaryModel,
     NegativeScreeningModel, NewsItemModel, PersonModel, ReviewCaseModel
 } from "../models";
@@ -179,4 +179,12 @@ export class DocumentInput implements DocumentInputModel {
     name: string;
     @Field()
     path: string;
+}
+
+@ObjectType()
+export class KycCaseChangeEvent implements KycCaseChangeEventThinModel {
+    @Field(() => String)
+    event: KycCaseChangeType;
+    @Field(() => ID)
+    caseId: string;
 }

@@ -2,12 +2,12 @@ import {Observable} from "rxjs";
 
 import {
     ApproveCaseModel,
-    CustomerModel,
+    CustomerModel, CustomerRiskAssessmentModel,
     DocumentContent,
     DocumentModel,
     DocumentRef,
-    DocumentStream,
-    KycCaseModel,
+    DocumentStream, KycCaseChangeEventModel,
+    KycCaseModel, KycCaseSummaryModel, NegativeScreeningModel,
     ReviewCaseModel
 } from "../../models";
 
@@ -23,6 +23,15 @@ export abstract class KycCaseManagementApi {
     abstract reviewCase(input: ReviewCaseModel): Promise<KycCaseModel>;
     abstract approveCase(input: ApproveCaseModel): Promise<KycCaseModel>;
     abstract processCase(id: string): Promise<KycCaseModel>;
+    abstract deleteCase(id: string): Promise<KycCaseModel>;
+    abstract updateCustomerRiskAssessment(id: string, customerRiskAssessment: CustomerRiskAssessmentModel): Promise<KycCaseModel>;
+    abstract updateNegativeNews(id: string, negativeScreening: NegativeScreeningModel): Promise<KycCaseModel>;
+    abstract updateCounterpartyNegativeNews(id: string, counterpartyNegativeScreening: NegativeScreeningModel): Promise<KycCaseModel>;
+    abstract updateCaseSummary(id: string, caseSummary: KycCaseSummaryModel): Promise<KycCaseModel>;
+    abstract watchCaseChanges(): Observable<KycCaseChangeEventModel>;
+    abstract watchCase(id: string): Observable<KycCaseModel>;
+    abstract listDocuments(): Promise<DocumentModel[]>;
+    abstract deleteDocument(id: string): Promise<DocumentModel>;
 }
 
 export class CaseNotFound extends Error {

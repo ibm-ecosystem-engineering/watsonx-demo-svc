@@ -1,6 +1,6 @@
 import * as Stream from "stream";
 
-export const streamToBuffer = async (stream: Stream): Promise<Buffer> => {
+export const streamToBuffer = async (stream: Stream | NodeJS.ReadableStream): Promise<Buffer> => {
     return new Promise<Buffer>((resolve, reject) => {
 
         const chunks = [];

@@ -7,7 +7,7 @@ export * from './document-manager.api';
 
 
 let _instance: DocumentManagerApi;
-const documentManagerApi = (): DocumentManagerApi => {
+export const documentManagerApi = (): DocumentManagerApi => {
     if (_instance) {
         return _instance;
     }

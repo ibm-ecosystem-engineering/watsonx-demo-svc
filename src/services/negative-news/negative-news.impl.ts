@@ -471,28 +471,43 @@ export class NegativeNewsImpl implements NegativeNewsApi {
 
     async screenPerson(person: PersonModel): Promise<NegativeScreeningModel> {
 
-        const {genAiModel} = await this.getBackend();
+        try {
+            const {genAiModel} = await this.getBackend();
 
-        const data: SearchResult[]  = await this.search(person.name);
+            const data: SearchResult[] = await this.search(person.name);
 
-        const {validUrls, badUrls} = await this.validateUrls(data);
+            const {validUrls, badUrls} = await this.validateUrls(data);
 
-        // await this.reportBadUrls(badUrls);
-        //
-        const classify: GenerateFunction = this.buildClassifyGenerateFunction(genAiModel);
-        const summarize: GenerateFunction = this.buildSummarizeGenerateFunction(genAiModel);
+            // await this.reportBadUrls(badUrls);
+            //
+            const classify: GenerateFunction = this.buildClassifyGenerateFunction(genAiModel);
+            const summarize: GenerateFunction = this.buildSummarizeGenerateFunction(genAiModel);
 
-        const {negativeNews, positiveNews} = await this.checkAllNegativeNews(validUrls, classify);
+            const {negativeNews, positiveNews} = await this.checkAllNegativeNews(validUrls, classify);
 
-        const summarizedPositiveNews = await this.summarizeAllNews(positiveNews, summarize);
-        const summarizedNegativeNews = await this.summarizeAllNews(negativeNews, summarize);
+            const summarizedPositiveNews = await this.summarizeAllNews(positiveNews, summarize);
+            const summarizedNegativeNews = await this.summarizeAllNews(negativeNews, summarize);
 
-        const {tp, fp} = await this.filterAllNews(summarizedNegativeNews, person.name, classify, person)
+            const {tp, fp} = await this.filterAllNews(summarizedNegativeNews, person.name, classify, person)
 
-        const totalScreened = data.length;
-        const result = this.finalConclusion(badUrls, tp, fp, summarizedPositiveNews, person.name, totalScreened)
+            const totalScreened = data.length;
+            const result = this.finalConclusion(badUrls, tp, fp, summarizedPositiveNews, person.name, totalScreened)
 
-        return result;
+            return result;
+        } catch (err) {
+            return {
+                subject: person.name,
+                summary: 'N/A',
+                totalScreened: 0,
+                negativeNews: [],
+                negativeNewsCount: 0,
+                nonNegativeNews: [],
+                nonNegativeNewsCount: 0,
+                unrelatedNews: [],
+                unrelatedNewsCount: 0,
+                error: err.message,
+            }
+        }
     }
 
     async getBackend(): Promise<{genAiModel: GenAiModel}> {

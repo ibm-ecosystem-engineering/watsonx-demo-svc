@@ -1,5 +1,4 @@
-import {BehaviorSubject, Observable} from "rxjs";
-import {getType} from 'mime';
+import {BehaviorSubject, Observable, Subject} from "rxjs";
 import * as Stream from "stream";
 
 import {CaseNotFound, KycCaseManagementApi} from "./kyc-case-management.api";
@@ -14,6 +13,7 @@ import {
     DocumentStream,
     isDocumentContent,
     isDocumentRef,
+    KycCaseChangeEventModel,
     KycCaseModel,
     KycCaseSummaryModel,
     NegativeScreeningModel,
@@ -25,12 +25,9 @@ import {
     Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory,
     customerRiskAssessmentConfig
 } from "../customer-risk-assessment";
-import {NegativeNewsApi} from "../negative-news";
-import {NegativeNewsImpl} from "../negative-news/negative-news.impl";
-import {KycCaseSummaryApi} from "../kyc-case-summary";
-import {KycCaseSummaryImpl} from "../kyc-case-summary/kyc-case-summary.impl";
-import {DocumentManagerApi} from "../document-manager";
-import {DocumentManagerDiscovery} from "../document-manager/document-manager.discovery";
+import {negativeNewsApi, NegativeNewsApi} from "../negative-news";
+import {kycCaseSummaryApi, KycCaseSummaryApi} from "../kyc-case-summary";
+import {documentManagerApi, DocumentManagerApi} from "../document-manager";
 
 const initialValue: KycCaseModel[] = [
     {
@@ -61,11 +58,12 @@ const initialValue: KycCaseModel[] = [
 
 export class KycCaseManagementMock implements KycCaseManagementApi {
     subject: BehaviorSubject<KycCaseModel[]> = new BehaviorSubject(initialValue);
+    changeSubject: Subject<KycCaseChangeEventModel> = new Subject();
 
     constructor(
-        private readonly negNewsService: NegativeNewsApi = new NegativeNewsImpl(),
-        private readonly kycSummaryService: KycCaseSummaryApi = new KycCaseSummaryImpl(),
-        private readonly documentManagerService: DocumentManagerApi = new DocumentManagerDiscovery()
+        private readonly negNewsService: NegativeNewsApi = negativeNewsApi(),
+        private readonly kycSummaryService: KycCaseSummaryApi = kycCaseSummaryApi(),
+        private readonly documentManagerService: DocumentManagerApi = documentManagerApi(),
     ) {}
 
     async listCases(): Promise<KycCaseModel[]> {
@@ -100,15 +98,14 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
         const updatedData = currentData.concat(newCase);
         console.log('Updated data on create case: ', updatedData);
         this.subject.next(updatedData);
+        this.changeSubject.next({kycCase: newCase, event: 'created'})
 
         return newCase;
     }
 
     async addDocumentToCase(caseId: string, documentName: string, document: DocumentRef | DocumentContent | DocumentStream, pathPrefix: string = ''): Promise<DocumentModel> {
-        const currentCase = await this.getCase(caseId);
+        const kycCase = await this.getCase(caseId);
 
-        const id = '' + (currentCase.documents.length + 1);
-        const documentId = `${caseId}-${id}`;
         const content = await this.loadDocument(document);
 
         const newDoc = await this.documentManagerService.uploadFile({
@@ -118,13 +115,12 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
             context: 'kyc-case',
         })
 
-        // const newDoc = {id: documentId, name: documentName, path: `${pathPrefix}${documentId}/${documentName}`, content};
-
         const caseDoc = Object.assign({}, newDoc, {path: `${pathPrefix}${newDoc.path}`, content})
 
-        currentCase.documents.push(caseDoc);
+        kycCase.documents.push(caseDoc);
 
         this.subject.next(this.subject.value);
+        this.changeSubject.next({kycCase, event: 'updated'})
 
         return caseDoc;
     }
@@ -156,215 +152,156 @@ export class KycCaseManagementMock implements KycCaseManagementApi {
     }
 
     async removeDocumentFromCase(caseId: string, documentId: string): Promise<KycCaseModel> {
-        const currentCase = await this.getCase(caseId);
+        const kycCase = await this.getCase(caseId);
 
-        currentCase.documents = currentCase.documents
+        kycCase.documents = kycCase.documents
             .filter(doc => doc.id !== documentId)
 
         this.subject.next(this.subject.value);
+        this.changeSubject.next({kycCase, event: 'updated'})
 
-        return currentCase;
+        return kycCase;
     }
 
     async reviewCase(reviewCase: ReviewCaseModel): Promise<KycCaseModel> {
-        const currentCase: KycCaseModel | undefined = first(this.subject.value.filter(c => c.id === reviewCase.id));
+        const kycCase: KycCaseModel | undefined = first(this.subject.value.filter(c => c.id === reviewCase.id));
 
-        if (!currentCase) {
+        if (!kycCase) {
             throw new CaseNotFound(reviewCase.id);
         }
 
         const status = reviewCase.customerOutreach ? 'CustomerOutreach' : 'Pending';
 
-        Object.assign(currentCase, reviewCase, {status});
+        Object.assign(kycCase, reviewCase, {status});
 
         this.subject.next(this.subject.value);
+        this.changeSubject.next({kycCase, event: 'updated'})
 
-        if (status === 'Pending') {
-            this.processCaseInternal(currentCase)
-                .catch(err => console.error('Error processing case', {err}))
-        }
-
-        return currentCase;
+        return kycCase;
     }
 
     async approveCase(input: ApproveCaseModel): Promise<KycCaseModel> {
-        const currentCase: KycCaseModel | undefined = first(this.subject.value.filter(c => c.id === input.id));
+        const kycCase: KycCaseModel | undefined = first(this.subject.value.filter(c => c.id === input.id));
 
-        if (!currentCase) {
+        if (!kycCase) {
             throw new CaseNotFound(input.id);
         }
 
-        currentCase.status = 'Pending';
-        currentCase.documents = currentCase.documents.concat(input.documents)
+        kycCase.status = 'Pending';
+        kycCase.documents = kycCase.documents.concat(input.documents)
 
         this.subject.next(this.subject.value);
+        this.changeSubject.next({kycCase, event: 'updated'})
 
-        this.processCaseInternal(currentCase)
-            .catch(err => console.error('Error processing case', {err}))
-
-        return currentCase;
+        return kycCase;
     }
 
     async processCase(id: string): Promise<KycCaseModel> {
-        const currentCase = await this.getCase(id);
+        const kycCase = await this.getCase(id);
 
+        Object.assign(kycCase, {
+            status: 'Pending',
+            negativeScreeningComplete: false,
+            counterpartyNegativeScreeningComplete: false,
+            customerRiskAssessmentComplete: false,
+            caseSummaryComplete: false,
+        })
 
-        this.processCaseInternal(currentCase)
-            .catch(err => console.error('Error processing case', {err}))
+        this.changeSubject.next({kycCase, event: 'updated'})
 
-        return currentCase;
+        return kycCase;
     }
 
-    async processCaseInternal(currentCase: KycCaseModel) {
+    async deleteCase(caseId: string): Promise<KycCaseModel> {
+        const cases: KycCaseModel[] = this.subject.value
 
-        const getSubjectCase = (currentCase: {id: string}): KycCaseModel => {
-            return first(this.subject.value
-                .filter(val => val.id === currentCase.id))
-        }
+        const index: number = cases.map(val => val.id).indexOf(caseId)
 
-        await this.customerRiskAssessment(currentCase)
-            .then(riskAssessment => {
-                const subjectCase = getSubjectCase(currentCase);
+        const kycCase: KycCaseModel = first(cases.splice(index, 1))
 
-                subjectCase.customerRiskAssessment = riskAssessment
+        this.subject.next(cases)
+        this.changeSubject.next({kycCase, event: 'deleted'})
 
-                this.subject.next(this.subject.value);
-            })
-            .catch(err => {
-                const subjectCase = getSubjectCase(currentCase);
+        return kycCase
+    }
 
-                console.log('Error getting customer risk assessment: ', {err})
+    async updateCaseSummary(id: string, summarize: KycCaseSummaryModel): Promise<KycCaseModel> {
+        const kycCase = await this.getCase(id);
 
-                subjectCase.customerRiskAssessment = {
-                    error: err.message,
-                    score: 0,
-                    rating: 'N/A'
-                };
+        kycCase.caseSummary = {summary: summarize.summary}
 
-                this.subject.next(this.subject.value);
-            });
+        this.subject.next(this.subject.value);
+        this.changeSubject.next({kycCase, event: 'updated'})
 
-        await this.negativeNews(currentCase.customer, currentCase.negativeScreening)
-            .then(news => {
-                const subjectCase = getSubjectCase(currentCase);
+        return kycCase;
+    }
 
-                subjectCase.negativeScreening = news
+    async updateCounterpartyNegativeNews(id: string, counterpartyNegativeScreening: NegativeScreeningModel): Promise<KycCaseModel> {
+        const kycCase = await this.getCase(id);
 
-                this.subject.next(this.subject.value);
-            })
-            .catch(err => {
-                const subjectCase = getSubjectCase(currentCase);
+        kycCase.counterpartyNegativeScreening = counterpartyNegativeScreening;
 
-                console.log('Error getting negative screening: ', {err})
+        this.subject.next(this.subject.value);
+        this.changeSubject.next({kycCase, event: 'updated'})
 
-                subjectCase.negativeScreening = {
-                    subject: currentCase.customer.name,
-                    summary: 'N/A',
-                    totalScreened: 0,
-                    negativeNews: [],
-                    negativeNewsCount: 0,
-                    nonNegativeNews: [],
-                    nonNegativeNewsCount: 0,
-                    unrelatedNews: [],
-                    unrelatedNewsCount: 0,
-                    error: err.message,
+        return kycCase;
+    }
+
+    async updateCustomerRiskAssessment(id: string, customerRiskAssessment: CustomerRiskAssessmentModel): Promise<KycCaseModel> {
+        const kycCase = await this.getCase(id);
+
+        kycCase.customerRiskAssessment = customerRiskAssessment;
+
+        this.subject.next(this.subject.value);
+        this.changeSubject.next({kycCase, event: 'updated'})
+
+        return kycCase;
+    }
+
+    async updateNegativeNews(id: string, negativeScreening: NegativeScreeningModel): Promise<KycCaseModel> {
+        const kycCase = await this.getCase(id);
+
+        kycCase.negativeScreening = negativeScreening;
+
+        this.subject.next(this.subject.value);
+        this.changeSubject.next({kycCase, event: 'updated'})
+
+        return kycCase;
+    }
+
+    watchCaseChanges(): Observable<KycCaseChangeEventModel> {
+        return this.changeSubject;
+    }
+
+    watchCase(id: string): Observable<KycCaseModel> {
+        const subject: BehaviorSubject<KycCaseModel> = new BehaviorSubject<KycCaseModel>(undefined);
+
+        this.getCase(id).then(kycCase => {
+            subject.next(kycCase);
+
+            this.changeSubject.subscribe({
+                next: event => {
+                    if (event.kycCase.id === id) {
+                        subject.next(event.kycCase);
+                    }
                 }
-
-                this.subject.next(this.subject.value);
             })
+        });
 
-        await this.negativeNews(currentCase.counterparty, currentCase.counterpartyNegativeScreening)
-            .then(news => {
-                const subjectCase = getSubjectCase(currentCase);
-
-                subjectCase.counterpartyNegativeScreening = news
-
-                this.subject.next(this.subject.value);
-            })
-            .catch(err => {
-                const subjectCase = getSubjectCase(currentCase);
-
-                console.log('Error getting counterparty negative screening: ', {err})
-
-                subjectCase.counterpartyNegativeScreening = {
-                    subject: currentCase.customer.name,
-                    summary: 'N/A',
-                    totalScreened: 0,
-                    negativeNews: [],
-                    negativeNewsCount: 0,
-                    nonNegativeNews: [],
-                    nonNegativeNewsCount: 0,
-                    unrelatedNews: [],
-                    unrelatedNewsCount: 0,
-                    error: err.message,
-                }
-
-                this.subject.next(this.subject.value);
-            })
-
-        await this.summarizeCase(currentCase)
-            .then(summarize => {
-                const subjectCase = getSubjectCase(currentCase);
-
-                subjectCase.caseSummary = {summary: summarize.summary}
-
-                this.subject.next(this.subject.value);
-            })
-            .catch(err => {
-                const subjectCase = getSubjectCase(currentCase);
-
-                console.log('Error getting case summary: ', {err})
-                subjectCase.caseSummary = {
-                    summary: 'N/A',
-                    error: err.message,
-                }
-
-                this.subject.next(this.subject.value);
-            })
+        return subject;
     }
 
-    async negativeNews(person: PersonModel, currentNews?: NegativeScreeningModel): Promise<NegativeScreeningModel> {
-        if (currentNews && !currentNews.error) {
-            return currentNews;
-        }
+    async listDocuments(): Promise<DocumentModel[]> {
+        return this.subject.value
+            .map(val => val.documents)
+            .reduce((result: DocumentModel[], current: DocumentModel[]) => {
+                result.push(...current);
 
-        return this.negNewsService.screenPerson(person);
+                return result;
+            }, [])
     }
 
-    async customerRiskAssessment(kycCase: KycCaseModel): Promise<CustomerRiskAssessmentModel> {
-        const config = customerRiskAssessmentConfig();
-
-        if (kycCase.customerRiskAssessment && !kycCase.customerRiskAssessment.error) {
-            return kycCase.customerRiskAssessment;
-        }
-
-        const api = Cp4adminCustomerRiskAssessmentCustomerRiskAssessmentApiFactory(config);
-
-        const body = {
-            nonPersonalEntityType: kycCase.customer.entityType,
-            nonPersonalGeographyType: kycCase.customer.countryOfResidence,
-            nonPersonalIndustryType: kycCase.customer.industryType,
-        };
-
-        console.log('Getting customer risk assessment: ', body)
-        return api
-            .customerRiskAssessmentRiskAssessment(body)
-            .then(result => result.data)
-            .then(riskAssessment => ({
-                score: riskAssessment.customerRiskAssessmentScore || 0,
-                rating: riskAssessment.customerRiskAssessmentRating || 'N/A',
-            }))
-    }
-
-    async summarizeCase(kycCase: KycCaseModel): Promise<KycCaseSummaryModel> {
-
-
-        console.log('Getting summary: ' + kycCase.customer.name)
-
-        const result = await this.kycSummaryService.summarize(kycCase.customer.name);
-
-        console.log('Summarize result: ', {summary: result});
-
-        return {summary: result};
+    async deleteDocument(): Promise<DocumentModel> {
+        return undefined;
     }
 }

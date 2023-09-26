@@ -11,6 +11,10 @@ export interface KycCaseModel {
     counterpartyNegativeScreening?: NegativeScreeningModel;
     customerRiskAssessment?: CustomerRiskAssessmentModel;
     caseSummary?: KycCaseSummaryModel;
+    negativeScreeningComplete?: boolean;
+    counterpartyNegativeScreeningComplete?: boolean;
+    customerRiskAssessmentComplete?: boolean;
+    caseSummaryComplete?: boolean;
 }
 
 export interface PersonModel {
@@ -106,6 +110,18 @@ export interface DocumentInputModel {
     id: string;
     name: string;
     path: string;
+}
+
+
+export type KycCaseChangeType = 'created' | 'updated' | 'deleted';
+export interface KycCaseChangeEventModel {
+    event: KycCaseChangeType;
+    kycCase: KycCaseModel;
+}
+
+export interface KycCaseChangeEventThinModel {
+    event: KycCaseChangeType;
+    caseId: string;
 }
 
 export const createEmptyCase = (): KycCaseModel => {

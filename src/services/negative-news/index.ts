@@ -8,14 +8,15 @@ export * from './negative-news.api';
 
 
 let _instance: NegativeNewsApi;
+export const negativeNewsApi = (): NegativeNewsApi => {
+    if (_instance) {
+        return _instance;
+    }
+
+    return _instance = new NegativeNewsImpl();
+}
 
 export const negativeNewsProvider: Provider = {
     provide: NegativeNewsApi,
-    useFactory: (): NegativeNewsApi => {
-        if (_instance) {
-            return _instance;
-        }
-
-        return _instance = new NegativeNewsImpl();
-    },
+    useFactory: negativeNewsApi,
 };

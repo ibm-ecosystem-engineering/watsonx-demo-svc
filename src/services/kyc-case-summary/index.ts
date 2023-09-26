@@ -5,7 +5,7 @@ import {Provider} from "@nestjs/common";
 export * from './kyc-case-summary.api';
 
 let _instance: KycCaseSummaryApi;
-const kycCaseSummaryApi = (): KycCaseSummaryApi => {
+export const kycCaseSummaryApi = (): KycCaseSummaryApi => {
     if (_instance) {
         return _instance;
     }
