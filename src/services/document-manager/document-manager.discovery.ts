@@ -13,7 +13,6 @@ import {getType} from "mime";
 import {FileUploadContext} from "../../models";
 import {first} from "../../utils";
 
-
 export class DocumentManagerDiscovery implements DocumentManagerApi {
     backendConfig: DataExtractionBackendConfig;
 
@@ -80,11 +79,11 @@ export class DocumentManagerDiscovery implements DocumentManagerApi {
         return {
             id,
             name: input.name,
-            path: `${id}/${input.name}`
+            path: buildPath(id, input.name)
         };
     }
 
-    getDiscoveryConfig(context?: FileUploadContext): {collectionId: string, projectId: string} {
+    getDiscoveryConfig(context: FileUploadContext = 'kyc-case'): {collectionId: string, projectId: string} {
         if (context === 'data-extraction') {
             return {
                 projectId: this.backendConfig.discoveryProjectId,
@@ -102,4 +101,49 @@ export class DocumentManagerDiscovery implements DocumentManagerApi {
         return first(path.split('/')) || path;
     }
 
+    async listFiles(input: {statuses?: string[], context?: FileUploadContext} = {}): Promise<DocumentOutputModel[]> {
+        const {collectionId, projectId} = this.getDiscoveryConfig(input.context);
+
+        const {discovery} = await this.getBackends();
+
+        const status = extractStatuses(input.statuses)
+
+        console.log('Listing files: ', {context: input.context, status, collectionId, projectId})
+        return discovery
+            .listDocuments({
+                projectId,
+                collectionId,
+                status: status.join(',')
+            })
+            .then(response => response.result.documents
+                .map((doc: DiscoveryV2.DocumentDetails) => ({
+                    id: doc.document_id,
+                    name: doc.filename,
+                    path: buildPath(doc.document_id, doc.filename),
+                    status: doc.status || (status.length === 1 ? status[0] : undefined)
+                }))
+            )
+    }
+}
+
+const statusValues = ['failed', 'pending', 'processing', 'available'];
+
+const extractStatuses = (statuses: string[] = []): string[] => {
+    console.log('Filtering statuses: ', {statuses})
+    const status = statuses.filter(val => statusValues.includes(val));
+    console.log('Filtered status: ', {status})
+
+    if (status.length === 0) {
+        return ['failed', 'pending', 'processing'];
+    }
+
+    return status;
+}
+
+const buildPath = (id: string, name?: string): string | undefined => {
+    if (!name) {
+        return
+    }
+
+    return `${id}/${name}`;
 }

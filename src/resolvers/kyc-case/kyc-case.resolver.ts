@@ -12,13 +12,13 @@ import {
 import {
     ApproveCaseModel,
     CustomerModel,
-    DocumentModel, KycCaseChangeEventModel,
+    DocumentModel,
+    KycCaseChangeEventModel,
     KycCaseChangeEventThinModel,
     KycCaseModel,
     ReviewCaseModel
 } from "../../models";
 import {KycCaseManagementApi} from "../../services";
-import {KycCaseManagementMock} from "../../services/kyc-case/kyc-case-management.mock";
 
 const pubSub: PubSub = new PubSub();
 const casesTrigger: string = 'cases';

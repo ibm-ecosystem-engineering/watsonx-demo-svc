@@ -12,6 +12,7 @@ export interface DocumentOutputModel {
     name: string;
     path: string;
     id: string;
+    status?: string;
 }
 
 export interface DocumentDownloadModel {
@@ -19,6 +20,8 @@ export interface DocumentDownloadModel {
 }
 
 export abstract class DocumentManagerApi {
+
+    abstract listFiles(input?: {statuses?: string[], context?: FileUploadContext}): Promise<DocumentOutputModel[]>;
 
     abstract uploadFile(input: DocumentUploadModel): Promise<DocumentOutputModel>;
 

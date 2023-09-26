@@ -37,6 +37,16 @@ export class FileUploadController {
         }
     }
 
+    @Get()
+    async listFiles(
+        @Param('context') context: FileUploadContext = 'kyc-case',
+        @Param('status') status: string | string[] = []
+    ): Promise<DocumentOutputModel[]> {
+        const statuses: string[] | undefined = !status ? undefined : (Array.isArray(status) ? status : [status])
+
+        return this.documentManagerService.listFiles({statuses, context});
+    }
+
     @Get(':id/:name')
     async downloadFile(
         @Param('id') id: string,
