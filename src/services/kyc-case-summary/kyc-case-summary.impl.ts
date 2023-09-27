@@ -25,6 +25,8 @@ export class KycCaseSummaryImpl implements KycCaseSummaryApi {
     summarize(name: string): Promise<string> {
         const {url} = buildKycCaseSummaryConfig();
 
+        console.log('Getting summary from url: ' + url)
+
         return queue.add(() => Axios.get(
             `${url}/${name}`,
             {

@@ -61,6 +61,8 @@ export class DocumentManagerDiscovery implements DocumentManagerApi {
 
         const {discovery} = await this.getBackends();
 
+        console.log('Uploading file: ', {name: input.name});
+
         const result = await discovery
             .addDocument({
                 projectId,
@@ -92,7 +94,7 @@ export class DocumentManagerDiscovery implements DocumentManagerApi {
         }
 
         return {
-            projectId: this.backendConfig.discoveryProjectId,
+            projectId: this.backendConfig.kycProjectId,
             collectionId: this.backendConfig.kycCollectionId
         }
     }
