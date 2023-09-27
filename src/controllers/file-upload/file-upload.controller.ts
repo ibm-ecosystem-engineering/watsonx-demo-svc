@@ -1,4 +1,15 @@
-import {Body, Controller, Get, Param, Post, Res, StreamableFile, UploadedFile, UseInterceptors} from "@nestjs/common";
+import {
+    Body,
+    Controller,
+    Get,
+    Param,
+    Post,
+    Query,
+    Res,
+    StreamableFile,
+    UploadedFile,
+    UseInterceptors
+} from "@nestjs/common";
 import {FileInterceptor} from "@nestjs/platform-express";
 import {getType} from "mime";
 
@@ -39,9 +50,10 @@ export class FileUploadController {
 
     @Get()
     async listFiles(
-        @Param('context') context: FileUploadContext = 'kyc-case',
-        @Param('status') status: string | string[] = []
+        @Query('context') context: FileUploadContext = 'kyc-case',
+        @Query('status') status: string[]
     ): Promise<DocumentOutputModel[]> {
+        console.log('Status', {status})
         const statuses: string[] | undefined = !status ? undefined : (Array.isArray(status) ? status : [status])
 
         return this.documentManagerService.listFiles({statuses, context});
