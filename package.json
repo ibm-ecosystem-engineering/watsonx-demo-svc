@@ -38,7 +38,7 @@
     "graphql-subscriptions": "^2.0.0",
     "graphql-ws": "^5.14.0",
     "html-to-text": "^9.0.5",
-    "ibm-cloud-sdk-core": "^4.1.1",
+    "ibm-cloud-sdk-core": "^4.1.2",
     "ibm-watson": "^8.0.0",
     "jsdom": "^22.1.0",
     "langchain": "^0.0.154",
