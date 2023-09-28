@@ -26,9 +26,9 @@ export class FileUploadController {
 
     @Post('upload')
     @UseInterceptors(FileInterceptor('file'))
-    async uploadFile(@Body() input: {name: string, parentId: string, context?: FileUploadContext}, @UploadedFile() file: Express.Multer.File): Promise<DocumentOutputModel> {
+    async uploadFile(@Body() input: {name: string, parentId: string, context?: FileUploadContext, standalone?: string}, @UploadedFile() file: Express.Multer.File): Promise<DocumentOutputModel> {
 
-        if (input.context === 'data-extraction') {
+        if (input.context === 'data-extraction' || input.standalone === 'true') {
             return this.documentManagerService
                 .uploadFile({
                     name: input.name,
@@ -51,12 +51,13 @@ export class FileUploadController {
     @Get()
     async listFiles(
         @Query('context') context: FileUploadContext = 'kyc-case',
-        @Query('status') status: string[]
+        @Query('status') status: string[],
+        @Query('ids') id: string[],
     ): Promise<DocumentOutputModel[]> {
-        console.log('Status', {status})
-        const statuses: string[] | undefined = !status ? undefined : (Array.isArray(status) ? status : [status])
+        const statuses: string[] | undefined = !status ? undefined : (Array.isArray(status) ? status : [status]);
+        const ids: string[] | undefined = !id ? undefined : (Array.isArray(id) ? id : [id]);
 
-        return this.documentManagerService.listFiles({statuses, context});
+        return this.documentManagerService.listFiles({statuses, context, ids});
     }
 
     @Get(':id/:name')

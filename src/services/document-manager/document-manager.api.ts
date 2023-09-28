@@ -21,7 +21,7 @@ export interface DocumentDownloadModel {
 
 export abstract class DocumentManagerApi {
 
-    abstract listFiles(input?: {statuses?: string[], context?: FileUploadContext}): Promise<DocumentOutputModel[]>;
+    abstract listFiles(input?: {statuses?: string[], context?: FileUploadContext, ids?: string[]}): Promise<DocumentOutputModel[]>;
 
     abstract uploadFile(input: DocumentUploadModel): Promise<DocumentOutputModel>;
 
