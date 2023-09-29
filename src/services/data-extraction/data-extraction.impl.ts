@@ -107,7 +107,8 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
         const response: DiscoveryV2.Response<DiscoveryV2.QueryResponse> = await backends.discovery.query({
             projectId: this.backendConfig.discoveryProjectId,
             naturalLanguageQuery,
-            count: 3,
+            count: 5,
+            filter: `enriched_text.entities.type:Organization,enriched_text.entities.text:${customer}`,
             passages: {
                 enabled: true,
                 per_document: passagesPerDocument,
