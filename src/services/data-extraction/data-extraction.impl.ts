@@ -116,7 +116,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
             passages: {
                 enabled: true,
                 per_document: passagesPerDocument,
-                count: 3
+                count: 4
             }
         })
 
