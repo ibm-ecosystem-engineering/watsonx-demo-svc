@@ -65,7 +65,7 @@ const databases = {};
 
 export class KycCaseManagementCloudant implements KycCaseManagementApi {
     client: CloudantV1;
-    subject: Subject<KycCaseModel[]>;
+    subject: BehaviorSubject<KycCaseModel[]>;
     changeSubject: Subject<KycCaseChangeEventModel>;
 
     constructor(
@@ -73,15 +73,8 @@ export class KycCaseManagementCloudant implements KycCaseManagementApi {
         config: CloudantBackendConfig
     ) {
         this.client = cloudantClient(config);
-        this.subject = new Subject<KycCaseModel[]>();
+        this.subject = new BehaviorSubject<KycCaseModel[]>([]);
         this.changeSubject = new Subject<KycCaseChangeEventModel>();
-
-        this.changeSubject.subscribe({
-            next: () => {
-                this.listCases()
-                    .catch(err => console.error('Error listing cases: ', {err}));
-            }
-        })
     }
 
     async getDatabase(db: string): Promise<string> {
@@ -129,11 +122,6 @@ export class KycCaseManagementCloudant implements KycCaseManagementApi {
                     .map(val => Object.assign({}, val.doc, {id: val.id}) as KycCaseModel)
             )
             .then(cases => cases.map(val => Object.assign(val, {status: val.status || 'New'})))
-            .then(cases => {
-                this.subject.next(cases);
-
-                return cases;
-            })
     }
 
     subscribeToCases(skipQuery?: boolean): Observable<KycCaseModel[]> {
@@ -462,19 +450,21 @@ export class KycCaseManagementCloudant implements KycCaseManagementApi {
     watchCase(id: string): Observable<KycCaseModel> {
         const subject: BehaviorSubject<KycCaseModel> = new BehaviorSubject<KycCaseModel>(undefined);
 
+        console.log('Watching case: ' + id)
         this.getCase(id).then(kycCase => {
             subject.next(kycCase);
 
             this.changeSubject.subscribe({
                 next: event => {
-                    if (event.kycCase.id === id) {
+                    if (event.kycCase?.id === id) {
+                        console.log('Updated case: ', {kycCase: event.kycCase})
                         subject.next(event.kycCase);
                     }
                 }
             })
         });
 
-        return subject;
+        return subject.asObservable();
     }
 
     async listDocuments(): Promise<DocumentModel[]> {
