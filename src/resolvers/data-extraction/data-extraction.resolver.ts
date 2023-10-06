@@ -30,7 +30,9 @@ export class DataExtractionResultResolver {
         return this.service.extractDataForQuestion(customer, question);
     }
 
-    @Subscription(() => [DataExtractionResult])
+    @Subscription(() => [DataExtractionResult], {
+        resolve: payload => payload
+    })
     async extractDataObservable(
         @Args('customer', {type: () => String}) customer: string,
         @Args('questions', {type: () => [DataExtractionQuestionIdInput]}) questions: DataExtractionQuestionIdInput[],
