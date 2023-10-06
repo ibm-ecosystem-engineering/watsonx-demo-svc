@@ -24,12 +24,25 @@ const pubSub: PubSub = new PubSub();
 const casesTrigger: string = 'cases';
 const caseTrigger: string = 'case';
 
+const buildCaseTrigger = (id: string) => `${caseTrigger}/${id}`;
+
 @Resolver(() => [KycCase])
 export class KycCaseResolver {
     private casesTriggered = false;
     private caseTriggered = false;
 
     constructor(private readonly service: KycCaseManagementApi) {
+        service.watchCaseChanges().subscribe({
+            next: event => {
+                const id = event.kycCase?.id
+
+                if (id) {
+                    console.log('Publishing case: ' + id);
+                    pubSub.publish(buildCaseTrigger(id), event.kycCase)
+                        .catch(err => console.log('Error triggering case: ', {err}));
+                }
+            }
+        })
     }
 
     @Query(() => [KycCase])
@@ -42,23 +55,27 @@ export class KycCaseResolver {
         return this.service.listDocuments();
     }
 
-    @Subscription(() => [KycCase])
+    @Subscription(() => [KycCase], {
+        resolve: payload => payload
+    })
     subscribeToCases() {
         const trigger = casesTrigger;
 
-        const publish = (cases: KycCaseModel[]) => {
-            console.log('Publishing cases', {cases})
+        const publish = async () => {
+            const cases = await this.service.listCases();
+
+            console.log('Publishing cases', {cases: cases.length})
 
             pubSub.publish(trigger, cases)
                 .catch(err => console.error(`Error publishing (${trigger}): `, {err}))
         }
 
-        if (!this.casesTriggered) {
-            publish([])
+        publish().catch(err => console.error(err.message, {err}))
 
-            this.service.subscribeToCases()
+        if (!this.casesTriggered) {
+            this.service.watchCaseChanges()
                 .subscribe({
-                    next: publish,
+                    next: async () => publish(),
                     error: err => console.error('Error handling cases subscription', err),
                     complete: () => console.log('Complete')
                 })
@@ -68,7 +85,9 @@ export class KycCaseResolver {
         return pubSub.asyncIterator(trigger);
     }
 
-    @Subscription(() => KycCaseChangeEvent)
+    @Subscription(() => KycCaseChangeEvent, {
+        resolve: payload => payload
+    })
     subscribeToCaseChanges() {
         const trigger = caseTrigger;
 
@@ -95,23 +114,20 @@ export class KycCaseResolver {
         return pubSub.asyncIterator(trigger);
     }
 
-    @Subscription(() => KycCase)
+    @Subscription(() => KycCase, {
+        resolve: payload => payload
+    })
     watchCase(
         @Args('id', { type: () => ID }) id: string
     ) {
-        const trigger = `${caseTrigger}/${id}`;
 
-        this.service.watchCase(id)
-            .subscribe({
-                next: kycCase => {
-                    pubSub.publish(trigger, kycCase)
-                        .catch(err => console.error(`Error publishing (${caseTrigger}): `, {err}))
-                },
-                error: err => console.error('Error handling cases subscription', err),
-                complete: () => console.log('Complete')
+        console.log('Subscribing to watching case: ' + id)
+        this.service.getCase(id)
+            .then(val => {
+                return pubSub.publish(buildCaseTrigger(id), val)
             })
 
-        return pubSub.asyncIterator(trigger);
+        return pubSub.asyncIterator(buildCaseTrigger(id));
     }
 
     @Query(() => KycCase)
