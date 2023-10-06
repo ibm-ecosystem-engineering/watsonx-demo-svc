@@ -340,9 +340,7 @@ export class KycCaseManagementCloudant implements KycCaseManagementApi {
     async approveCase(approve: ApproveCaseModel): Promise<KycCaseModel> {
         const currentCase: CloudantKycCaseModel = await this.getCase(approve.id);
 
-        const status = approve.customerOutreach ? 'CustomerOutreach' : 'Pending';
-
-        Object.assign(currentCase, approve, {status});
+        Object.assign(currentCase, approve, {status: 'Pending'});
 
         return this.updateCase(currentCase)
     }
