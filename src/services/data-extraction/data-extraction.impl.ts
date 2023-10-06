@@ -131,9 +131,9 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
         return text;
     }
 
-    filterDocuments(result: DiscoveryV2.QueryResponse, type: string, subject: string): DiscoveryV2.QueryResult[] {
+    filterDocuments(result: DiscoveryV2.QueryResponse, subject: string): DiscoveryV2.QueryResult[] {
         return result.results.filter(val => {
-            const organizations = extractEntities(val.enriched_text, type)
+            const organizations = extractEntities(val.enriched_text, 'Organization')
 
             return organizations.map(v => v.toLowerCase()).includes(subject.toLowerCase())
         })
