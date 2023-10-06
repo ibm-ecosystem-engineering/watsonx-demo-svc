@@ -7,6 +7,8 @@ import {DataExtractionConfig, DataExtractionCsv} from "./data-extraction.csv";
 import {DataExtractionResultModel} from "../../models";
 import {first, GenAiModel, GenerativeResponse} from "../../utils";
 import {createDiscoveryV2} from "../../utils/discovery-v2";
+import {promises} from "fs";
+import {join} from "path";
 
 export interface DataExtractionBackendConfig {
     identityUrl: string;
@@ -22,6 +24,7 @@ export interface DataExtractionBackendConfig {
     discoveryApiKey: string;
     discoveryVersion: string;
     discoveryProjectId: string;
+    documentCount: number;
 
     kycProjectId: string;
     kycCollectionId: string;
@@ -39,13 +42,14 @@ export const buildDataExtractionBackendConfig = (): DataExtractionBackendConfig 
         wmlProjectId: process.env.WML_PROJECT_ID || '05ba9d92-734e-4b34-a672-f727a2c26440',
 
         decodingMethod: process.env.DECODING_METHOD || 'greedy',
-        maxNewTokens: parseInt(process.env.MAX_NEW_TOKENS || '100'),
+        maxNewTokens: parseInt(process.env.MAX_NEW_TOKENS || '20'),
         repetitionPenalty: parseInt(process.env.REPETITION_PENALTY || '1'),
 
         discoveryUrl: process.env.DISCOVERY_URL || 'https://api.us-south.discovery.watson.cloud.ibm.com/instances/0992769e-726a-4ab0-a9d9-4352e204cc87',
         discoveryApiKey: process.env.DISCOVERY_API_KEY,
         discoveryVersion: process.env.DISCOVERY_VERSION || '2020-08-30',
         discoveryProjectId: process.env.DISCOVERY_PROJECT_ID || '303aab25-cb4f-4b28-b8d2-30e23e39a37f',
+        documentCount: parseInt(process.env.DOCUMENT_COUNT || '5'),
 
         kycProjectId: process.env.KYC_PROJECT_ID || '303aab25-cb4f-4b28-b8d2-30e23e39a37f',
         kycCollectionId: process.env.KYC_COLLECTION_ID,
@@ -103,12 +107,12 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
     async queryDiscovery(customer: string, config: DataExtractionConfig, backends: WatsonBackends): Promise<string> {
         const naturalLanguageQuery = config.question + ' ' + customer;
 
-        const passagesPerDocument = false;
+        const passagesPerDocument = true;
         const response: DiscoveryV2.Response<DiscoveryV2.QueryResponse> = await backends.discovery.query({
             projectId: this.backendConfig.discoveryProjectId,
             naturalLanguageQuery,
-            count: 5,
-            filter: `enriched_text.entities.type:Organization,enriched_text.entities.text:${customer}`,
+            count: this.backendConfig.documentCount,
+            // filter: `enriched_text.entities.type:Organization,enriched_text.entities.text:${customer}`,
             passages: {
                 enabled: true,
                 per_document: passagesPerDocument,
@@ -118,7 +122,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
 
         const text = !passagesPerDocument
             ? this.handleDiscoveryPassages(response.result)
-            : this.handleDiscoveryResult(response.result);
+            : this.handleDiscoveryResult(response.result, customer);
 
         console.log('1. Text extracted from Discovery:', {naturalLanguageQuery, text})
 
@@ -127,8 +131,16 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
         return text;
     }
 
-    handleDiscoveryResult(result: DiscoveryV2.QueryResponse): string {
-        return result.results
+    filterDocuments(result: DiscoveryV2.QueryResponse, type: string, subject: string): DiscoveryV2.QueryResult[] {
+        return result.results.filter(val => {
+            const organizations = extractEntities(val.enriched_text, type)
+
+            return organizations.map(v => v.toLowerCase()).includes(subject.toLowerCase())
+        })
+    }
+
+    handleDiscoveryResult(result: DiscoveryV2.QueryResponse, customer: string): string {
+        return this.filterDocuments(result, customer)
             .map(result => result.document_passages
                 .map(passage => passage.passage_text)
                 .join(' ')
@@ -192,4 +204,23 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
         }
     }
 
+}
+
+interface Entity {
+    model_name: string
+    text: string
+    type: string
+}
+
+interface EnrichedText {
+    entities: Entity[]
+}
+
+const extractEntities = (enrichedText: EnrichedText[], ...types: string[]): string[] => {
+    return enrichedText
+        .reduce((result: Entity[], current: EnrichedText) => {
+            return result.concat(...current.entities)
+        }, [])
+        .filter((entity: Entity) => types.includes(entity.type))
+        .map((entity: Entity) => entity.text)
 }
