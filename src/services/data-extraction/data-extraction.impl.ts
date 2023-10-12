@@ -9,6 +9,7 @@ import {first, GenAiModel, GenerativeResponse} from "../../utils";
 import {createDiscoveryV2} from "../../utils/discovery-v2";
 import {promises} from "fs";
 import {join} from "path";
+import {kycCaseSummaryApi, KycCaseSummaryApi} from "../kyc-case-summary";
 
 export interface DataExtractionBackendConfig {
     identityUrl: string;
@@ -72,25 +73,31 @@ export interface WatsonBackends {
     wml: GenAiModel;
 }
 
-export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implements DataExtractionApi {
+interface Context {
+    texts: {[source: string]: string}
+}
+
+const SOURCE_KYCSUMMARY = 'KYCSummary'
+
+export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Context> implements DataExtractionApi {
     backendConfig: DataExtractionBackendConfig;
 
-    constructor() {
+    constructor(private readonly kycSummaryService: KycCaseSummaryApi = kycCaseSummaryApi()) {
         super();
 
         this.backendConfig = buildDataExtractionBackendConfig();
     }
 
-    async extractDataForQuestionInternal(customer: string, question: {id: string}, backends: WatsonBackends): Promise<DataExtractionResultModel> {
+    async extractDataForQuestionInternal(customer: string, question: {id: string}, backends: WatsonBackends, context: Context): Promise<DataExtractionResultModel> {
         const config = first((await this.getCsvData()).filter(val => val.id === question.id))
 
         if (!config) {
             throw new Error('Unable to find question: ' + question.id)
         }
 
-        console.log('Extracting data for question', {question: config.question, customer})
+        console.log('Extracting data for question', {question: config.question, source: config.source, customer})
 
-        const text = await this.queryDiscovery(customer, config, backends);
+        const text = this.getTextFromContext(context, config.source) || await this.queryDiscovery(customer, config, backends);
 
         const {watsonxResponse, prompt} = await this.generateResponse(customer, config, text, backends);
 
@@ -99,9 +106,22 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
             question: config.question,
             inScope: config.inScope,
             expectedResponse: config.expectedResponse,
+            source: config.source,
+            model: config.model,
+            tokens: config.tokens,
             watsonxResponse,
             prompt,
         }
+    }
+
+    getTextFromContext(context: Context, source: string): string | undefined {
+        const text = context.texts[source];
+
+        if (text) {
+            console.log('1. Text retrieved from context:', {source, text})
+        }
+
+        return text;
     }
 
     async queryDiscovery(customer: string, config: DataExtractionConfig, backends: WatsonBackends): Promise<string> {
@@ -157,22 +177,24 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
     async generateResponse(customer: string, config: DataExtractionConfig, text: string, backends: WatsonBackends): Promise<{watsonxResponse: string, prompt: string}> {
 
         const prompt = (config.prompt || `From below text find answer for ${config.question} ${customer}`).replace('#', customer);
-        // const prompt = (`From below text find answer for ${config.question} ${customer}`).replace('#', customer);
+        const max_new_tokens = config.tokens || this.backendConfig.maxNewTokens;
+
         const parameters = {
             decoding_method: this.backendConfig.decodingMethod,
-            max_new_tokens: this.backendConfig.maxNewTokens,
+            max_new_tokens,
             repetition_penalty: this.backendConfig.repetitionPenalty,
         }
 
         const input = prompt + '\n\n' + text;
 
+        const modelId = config.model || this.backendConfig.modelId;
         const result: GenerativeResponse = await backends.wml.generate({
             input,
-            modelId: this.backendConfig.modelId,
+            modelId,
             parameters,
         });
 
-        console.log('2. Text generated from watsonx.ai:', {prompt, generatedText: result.generatedText, input})
+        console.log('2. Text generated from watsonx.ai:', {prompt, modelId, max_new_tokens, generatedText: result.generatedText, input})
 
         return {watsonxResponse: result.generatedText, prompt: input};
     }
@@ -203,6 +225,30 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends> implem
             discovery,
         }
     }
+
+    async getContext(auth: WatsonBackends, subject: string, questions: Array<{id: string}>): Promise<Context> {
+        const ids: string[] = questions.map(val => val.id)
+
+        const sources = (await this.getCsvData())
+            .filter(val => ids.includes(val.id))
+            .map(val => val.source)
+
+        if (!sources.includes(SOURCE_KYCSUMMARY)) {
+            return {texts: {}}
+        }
+
+        const texts: {[source: string]: string} = {}
+        texts[SOURCE_KYCSUMMARY] = await this.kycSummaryService
+            .summarize(subject)
+            .catch(err => {
+                console.log('Error getting kyc summary: ', {err})
+
+                return undefined
+            })
+
+        return {texts}
+    }
+
 
 }
 

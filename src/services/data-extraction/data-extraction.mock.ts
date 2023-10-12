@@ -4,7 +4,7 @@ import {DataExtractionResultModel} from "../../models";
 import {delay, first} from "../../utils";
 
 
-export class DataExtractionMock extends DataExtractionCsv<{}> implements DataExtractionApi {
+export class DataExtractionMock extends DataExtractionCsv<{}, {}> implements DataExtractionApi {
 
     async extractDataForQuestionInternal(_: string, question: {id: string}, auth: {}): Promise<DataExtractionResultModel> {
         const data = await this.getCsvData();
@@ -21,6 +21,10 @@ export class DataExtractionMock extends DataExtractionCsv<{}> implements DataExt
     }
 
     async getBackends(): Promise<{}> {
+        return {};
+    }
+
+    async getContext(): Promise<{}> {
         return {};
     }
 
