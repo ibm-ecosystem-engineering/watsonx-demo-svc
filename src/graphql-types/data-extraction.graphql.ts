@@ -33,5 +33,11 @@ export class DataExtractionResult implements DataExtractionResultModel {
     watsonxResponse: string;
     @Field()
     prompt: string;
+    @Field()
+    source: string;
+    @Field()
+    model: string;
+    @Field(() => Number)
+    tokens: number;
 }
 

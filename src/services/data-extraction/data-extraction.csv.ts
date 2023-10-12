@@ -6,36 +6,39 @@ import {DataExtractionApi} from "./data-extraction.api";
 import {DataExtractionQuestionModel, DataExtractionResultModel} from "../../models";
 import {first, parseCsv} from "../../utils";
 
-const csvFile: string = `ID,Question,PoCScope,Company,Prompt,Expected Answer,watsonx Response
-1,What is Name and trading name of the organization?,X,,,,
-2,What is the registered address of the company?,X,BP P.L.C,From below text find the registered address of the company #?,"1 St James's Square, London, SW1Y 4PD","1 St James's Square, London, SW1Y 4PD"
-3,What is the business/trading address of the company?,,,,,
-4,What is identification number of the organization?,X,BP P.L.C,from below text find  identification number of the organization #? ,102498,102498
-5,Who are the key controllers and authorized signatories?,,,,,
-6,Names all the active directors of the company.,X,BP P.L.C,"from below text find the names of active directors of the company # in sequence ?","LUND, Helge BLANC, Amanda Jayne DALEY, Pamela","LUND, Helge BLANC, Amanda Jayne DALEY, Pamela"
-7,"What is the status of the organization ex; active, dissolved?",X,BP P.L.C,"from below text what is the status of the organization # ?",Active,Active
-8,What is the year of incorporation?,X,BP P.L.C,"from below text What is the year of incorporation of #?",1909,1909
-9,Who are the shareholders of the company along with the percentage of ownership?,,,,,
-10,Who is the ultimate owner of the company?,,,,,
-11,Who are the key controllers and authorized signatories?,,,,,
-12,What is the industry type/SIC/NICS code of the company?,,,,,
-13,What are the products utilized by the company?,,,,,
-14,What is/are operation location/s or jurisdiction/s?,,,,,
-15,Number of employees of the firm,,,,,
-16,Name of the subsidiary of the company,,,,,
-17,What is the Legal entity Type of the organization ex; publicly traded/limited liability etc.,,,,,
-18,What is the turnover or revenue of the organization?,,,,,
-19,Certificate/licence issued by the government.,,,,,
-20,Whats is the next date of confirmation statement?,X,BP P.L.C,"from below text, find the next date of confirmation statement for company #?",30/06/24,30/06/24`
+const csvFile: string = `ID,Question,Source,Model,Token,PoCScope,Company,Prompt,Expected Answer,watsonx Response
+1,What is Name and trading name of the organization?,Discovery,google/flan-t5-xxl,20,,,"From below text,What is Name and trading name of the organization #?",,
+2,What is the registered address of the company?,Discovery,google/flan-t5-xxl,20,X,BP P.L.C,From below text find the registered address of the company #?,"1 St James's Square, London, SW1Y 4PD","1 St James's Square, London, SW1Y 4PD"
+3,What is the business/trading address of the company?,Discovery,google/flan-t5-xxl,20,,,"from below text, What is the business/trading address of the company #?",,
+4,What is identification number of the organization?,Discovery,google/flan-t5-xxl,20,X,BP P.L.C,from below text find  identification number of the organization #? ,102498,102498
+5,Who are the key controllers and authorized signatories?,KYCSummary,meta-llama/llama-2-70b-chat,20,,,"from below text, Who are the key controllers and authorized signatories of the company #?",,
+6,Names all the active directors of the company.,KYCSummary,meta-llama/llama-2-70b-chat,20,X,BP P.L.C,"from below text, find the names of all active directors of the company # in sequence ?","LUND, Helge BLANC, Amanda Jayne DALEY, Pamela","LUND, Helge BLANC, Amanda Jayne DALEY, Pamela"
+7,"What is the status of the organization ex; active, dissolved?",Discovery,google/flan-t5-xxl,20,X,BP P.L.C,"from below text, what is the status of the organization # ?",Active,Active
+8,What is the year of incorporation?,Discovery,google/flan-t5-xxl,20,X,BP P.L.C,"from below text, What is the year of incorporation of the company #?",1909,1909
+9,Who are the shareholders of the company along with the percentage of ownership?,Discovery,google/flan-t5-xxl,20,,,"from below text, Who are the shareholders of the company # along with the percentage of ownership?",,
+10,Who is the ultimate owner of the company?,KYCSummary,meta-llama/llama-2-70b-chat,20,,,"from below text, Who is the ultimate owner of the company #?",,
+11,Who are the key controllers and authorized signatories?,KYCSummary,meta-llama/llama-2-70b-chat,20,X,,"from below text, Who are the key controllers and authorized signatories of the company #?",,
+12,What is the industry type/SIC/NICS code of the company?,KYCSummary,google/flan-t5-xxl,20,,,"from below text, What is the industry type/SIC/NICS code of the company #?",,
+13,What are the products utilized by the company?,KYCSummary,google/flan-ul2,20,X,,"from below text, What are the products manufactured by the company #?",,
+14,What is/are operation location/s or jurisdiction/s?,Discovery,google/flan-t5-xxl,20,,,"from below text, What is/are operation location/s or jurisdiction/s of the comoany #?",,
+15,Number of employees of the firm,KYCSummary,meta-llama/llama-2-70b-chat,30,X,,"from below text, find the Number of employees of the company #?",,
+16,Name of the subsidiary of the company,Discovery,google/flan-t5-xxl,20,,,"from below text, find the Name of the subsidiary of the company #?",,
+17,What is the Legal entity Type of the organization ex; publicly traded/limited liability etc.,KYCSummary,meta-llama/llama-2-70b-chat,20,X,,"from below text, What is the Legal entity Type of the organization # ex; publicly traded/limited liability? etc.",,
+18,What is the turnover or revenue of the organization?,KYCSummary,meta-llama/llama-2-70b-chat,20,X,,"from below text, find the turnover or revenue of the organization #?",,
+19,Certificate/licence issued by the government.,Discovery,google/flan-t5-xxl,20,,,"from below text, What is the Certificate/licence issued by the government for company #?",,
+20,Whats is the next date of confirmation statement?,KYCSummary,meta-llama/llama-2-70b-chat,20,X,BP P.L.C,"from below text, find the next date of confirmation statement for company #?",30/06/24,30/06/24`
 
 export interface DataExtractionConfig extends DataExtractionQuestionModel {
+    source: string;
+    model: string;
+    tokens: number;
     expectedResponse: string;
     prompt: string;
 }
 
 let data: Promise<DataExtractionConfig[]>;
 
-export abstract class DataExtractionCsv<A> extends DataExtractionApi {
+export abstract class DataExtractionCsv<A, C> extends DataExtractionApi {
 
     async getCsvData(): Promise<DataExtractionConfig[]> {
         if (data) {
@@ -63,9 +66,12 @@ export abstract class DataExtractionCsv<A> extends DataExtractionApi {
                     .map(values => ({
                         id: '' + values[0],
                         question: '' + values[1],
-                        inScope: values[2] === 'X',
-                        prompt: values[4],
-                        expectedResponse: '' + values[5]
+                        source: values[2],
+                        model: values[3],
+                        tokens: values[4],
+                        inScope: values[5] === 'X',
+                        prompt: values[7],
+                        expectedResponse: '' + values[8]
                     }))
                     .filter(val => val.id !== 'ID');
             })
@@ -80,8 +86,10 @@ export abstract class DataExtractionCsv<A> extends DataExtractionApi {
     async extractData(customer: string, questions: Array<{id: string}>): Promise<DataExtractionResultModel[]> {
         const auth: A = await this.getBackends();
 
-        const extractDataForQuestion = (question: DataExtractionQuestionModel) => {
-            return this.extractDataForQuestionInternal(customer, question, auth)
+        const context: C = await this.getContext(auth, customer, questions);
+
+        const extractDataForQuestion = async (question: DataExtractionQuestionModel) => {
+            return this.extractDataForQuestionInternal(customer, question, auth, context)
                 .catch(err => {
                     console.error(`Error retrieving question for customer (${customer}: ${question}`, {err})
 
@@ -105,9 +113,11 @@ export abstract class DataExtractionCsv<A> extends DataExtractionApi {
 
         this.emptyDataExtractionResults(questions).then(result => subject.next(result))
 
-        this.getBackends().then((auth: A) => {
+        this.getBackends().then(async (auth: A) => {
+            const context = await this.getContext(auth, customer, questions);
+
             questions
-                .map(question => this.extractDataForQuestionInternal(customer, question, auth))
+                .map(question => this.extractDataForQuestionInternal(customer, question, auth, context))
                 .map(promise => promise.then((result: DataExtractionResultModel) => {
                     const currentResults: DataExtractionResultModel[] = subject.value;
 
@@ -126,12 +136,14 @@ export abstract class DataExtractionCsv<A> extends DataExtractionApi {
     async extractDataForQuestion(customer: string, question: {id: string}): Promise<DataExtractionResultModel> {
         const auth: A = await this.getBackends();
 
-        return this.extractDataForQuestionInternal(customer, question, auth);
+        const context: C = await this.getContext(auth, customer, [question])
+
+        return this.extractDataForQuestionInternal(customer, question, auth, context);
     }
 
     abstract getBackends(): Promise<A>;
 
-    abstract
-    abstract extractDataForQuestionInternal(customer: string, question: {id: string}, backends: A): Promise<DataExtractionResultModel>;
+    abstract extractDataForQuestionInternal(customer: string, question: {id: string}, backends: A, context: C): Promise<DataExtractionResultModel>;
 
+    abstract getContext(auth: A, subject: string, questions: Array<{id: string}>): Promise<C>;
 }
