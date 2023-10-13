@@ -240,6 +240,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
         const texts: {[source: string]: string} = {}
         texts[SOURCE_KYCSUMMARY] = await this.kycSummaryService
             .summarize(subject)
+            .then(text => text.replace(/^Output: */, ''))
             .catch(err => {
                 console.log('Error getting kyc summary: ', {err})
 
