@@ -1,15 +1,15 @@
 import * as process from "process";
 import {IamAuthenticator, IamTokenManager} from "ibm-cloud-sdk-core";
 import DiscoveryV2 = require("ibm-watson/discovery/v2");
+const striptags = require("striptags");
 
 import {DataExtractionApi} from "./data-extraction.api";
+
+import {createDiscoveryV2} from "../../utils/discovery-v2";
 import {DataExtractionConfig, DataExtractionCsv} from "./data-extraction.csv";
+import {kycCaseSummaryApi, KycCaseSummaryApi} from "../kyc-case-summary";
 import {DataExtractionResultModel} from "../../models";
 import {first, GenAiModel, GenerativeResponse} from "../../utils";
-import {createDiscoveryV2} from "../../utils/discovery-v2";
-import {promises} from "fs";
-import {join} from "path";
-import {kycCaseSummaryApi, KycCaseSummaryApi} from "../kyc-case-summary";
 
 export interface DataExtractionBackendConfig {
     identityUrl: string;
@@ -99,6 +99,20 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
 
         const text = this.getTextFromContext(context, config.source) || await this.queryDiscovery(customer, config, backends);
 
+        if (!text) {
+            return {
+                id: config.id,
+                question: config.question,
+                inScope: config.inScope,
+                expectedResponse: config.expectedResponse,
+                source: config.source,
+                model: config.model,
+                tokens: config.tokens,
+                watsonxResponse: 'No content available. Please upload documents!',
+                prompt: '',
+            }
+        }
+
         const {watsonxResponse, prompt} = await this.generateResponse(customer, config, text, backends);
 
         return {
@@ -140,9 +154,11 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
             }
         })
 
-        const text = !passagesPerDocument
+        const textWithHtml: string = !passagesPerDocument
             ? this.handleDiscoveryPassages(response.result)
             : this.handleDiscoveryResult(response.result, customer);
+
+        const text = striptags(textWithHtml.trim())
 
         console.log('1. Text extracted from Discovery:', {naturalLanguageQuery, text})
 
