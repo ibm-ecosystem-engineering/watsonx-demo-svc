@@ -41,7 +41,7 @@
     "ibm-cloud-sdk-core": "^4.1.2",
     "ibm-watson": "^8.0.0",
     "jsdom": "^22.1.0",
-    "langchain": "^0.0.167",
+    "langchain": "^0.0.169",
     "mime": "^3.0.0",
     "optional-js": "^2.3.0",
     "reflect-metadata": "^0.1.13",
