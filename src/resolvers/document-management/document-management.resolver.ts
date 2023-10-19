@@ -1,7 +1,7 @@
 import {Args, Query, Resolver} from "@nestjs/graphql";
 
 import {DocumentOutput, ListDocumentInput} from "../../graphql-types";
-import {DocumentManagerApi} from "../../services";
+import {DocumentManagerApi, DocumentOutputModel} from "../../services";
 
 @Resolver(() => [DocumentOutput])
 export class DocumentManagementResolver {
@@ -13,6 +13,11 @@ export class DocumentManagementResolver {
         @Args('input', {nullable: true}) input: ListDocumentInput = {}
     ) {
 
-        return this.service.listFiles(input);
+        return this.service
+            .listFiles(input)
+            .then((docs: DocumentOutputModel[]) => docs.map(doc => Object.assign(
+                doc,
+                {path: `document/${doc.id}/${doc.name}`})
+            ));
     }
 }

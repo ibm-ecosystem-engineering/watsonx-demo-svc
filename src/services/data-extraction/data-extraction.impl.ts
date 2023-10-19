@@ -1,4 +1,5 @@
 import * as process from "process";
+import {promises} from "fs";
 import {IamAuthenticator, IamTokenManager} from "ibm-cloud-sdk-core";
 import DiscoveryV2 = require("ibm-watson/discovery/v2");
 const striptags = require("striptags");
@@ -150,9 +151,16 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
             passages: {
                 enabled: true,
                 per_document: passagesPerDocument,
-                count: 4
+                max_per_document: 5,
+                count: 5,
+                find_answers: true,
+                max_answers_per_passage: 1,
             }
         })
+
+        await promises
+            .writeFile('discovery.out.json', JSON.stringify(response.result, null, '  '))
+            .catch(err => console.error('Error writing file', {err}))
 
         const textWithHtml: string = !passagesPerDocument
             ? this.handleDiscoveryPassages(response.result)
@@ -171,17 +179,35 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
         return result.results.filter(val => {
             const organizations = extractEntities(val.enriched_text, 'Organization')
 
-            return organizations.map(v => v.toLowerCase()).includes(subject.toLowerCase())
+            const include = organizations.map(v => v.toLowerCase()).includes(subject.toLowerCase())
+
+            if (!include) {
+                console.log('Filtering out document ' + val.document_id + ': ', {organizations})
+            }
+
+            return include
         })
     }
 
     handleDiscoveryResult(result: DiscoveryV2.QueryResponse, customer: string): string {
-        return this.filterDocuments(result, customer)
-            .map(result => result.document_passages
-                .map(passage => passage.passage_text)
-                .join(' ')
-            )
+        const filteredDocuments = this.filterDocuments(result, customer)
+
+        promises
+            .writeFile('discovery.filtered.json', JSON.stringify(filteredDocuments, null, '  '))
+            .catch(err => console.error('Error writing file', {err}))
+
+        const text = filteredDocuments
+            .map(result => {
+                console.log('Document passages: ' + result.document_passages.length)
+                return result.document_passages
+                        .map(passage => passage.passage_text)
+                        .join(' ')
+            })
             .join(' ')
+
+        console.log('Discovery result: ', {length: text.length, text})
+
+        return text
     }
 
     handleDiscoveryPassages(result: DiscoveryV2.QueryResponse): string {
@@ -280,6 +306,7 @@ interface EnrichedText {
 }
 
 const extractEntities = (enrichedText: EnrichedText[], ...types: string[]): string[] => {
+    console.log('Enriched text: ', {enrichedText})
     return enrichedText
         .reduce((result: Entity[], current: EnrichedText) => {
             return result.concat(...current.entities)
