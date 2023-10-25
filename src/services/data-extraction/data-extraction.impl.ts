@@ -10,6 +10,7 @@ import {DataExtractionConfig, DataExtractionCsv} from "./data-extraction.csv";
 import {kycCaseSummaryApi, KycCaseSummaryApi} from "../kyc-case-summary";
 import {DataExtractionResultModel} from "../../models";
 import {first, GenAiModel, GenerativeResponse} from "../../utils";
+import axios from "axios";
 
 export interface DataExtractionBackendConfig {
     identityUrl: string;
@@ -154,11 +155,11 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
             }
         })
 
-        const textWithHtml: string = !passagesPerDocument
+        const passages: string[] = !passagesPerDocument
             ? this.handleDiscoveryPassages(response.result)
             : this.handleDiscoveryResult(response.result, customer);
 
-        const text = striptags(textWithHtml.trim())
+        const text: string = await this.findRelevantPassages(naturalLanguageQuery, passages)
 
         console.log('1. Text extracted from Discovery:', {naturalLanguageQuery, text})
 
@@ -175,19 +176,27 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
         })
     }
 
-    handleDiscoveryResult(result: DiscoveryV2.QueryResponse, customer: string): string {
+    handleDiscoveryResult(result: DiscoveryV2.QueryResponse, customer: string): string[] {
         return this.filterDocuments(result, customer)
             .map(result => result.document_passages
                 .map(passage => passage.passage_text)
-                .join(' ')
             )
-            .join(' ')
+            .reduce((result: string[], current: string[]) => {
+                return result.concat(...current)
+            }, [])
     }
 
-    handleDiscoveryPassages(result: DiscoveryV2.QueryResponse): string {
+    handleDiscoveryPassages(result: DiscoveryV2.QueryResponse): string[] {
         return result.passages
             .map(passage => passage.passage_text)
-            .join(' ')
+    }
+
+    async findRelevantPassages(question: string, passages: string[]): Promise<string> {
+        const url = process.env.RELEVANT_PASSAGES_URL || 'https://similarity-check.18xu6cedovu0.us-south.codeengine.appdomain.cloud/api/find_relevant_passage'
+
+        return axios
+            .post<{relevant_passage: string}>(url, {question, passages})
+            .then(response => response.data.relevant_passage)
     }
 
     async generateResponse(customer: string, config: DataExtractionConfig, text: string, backends: WatsonBackends): Promise<{watsonxResponse: string, prompt: string}> {
