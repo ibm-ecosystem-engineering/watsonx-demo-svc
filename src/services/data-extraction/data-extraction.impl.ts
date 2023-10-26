@@ -2,6 +2,7 @@ import * as process from "process";
 import {IamAuthenticator, IamTokenManager} from "ibm-cloud-sdk-core";
 import DiscoveryV2 = require("ibm-watson/discovery/v2");
 const striptags = require("striptags");
+import axios from "axios";
 
 import {DataExtractionApi} from "./data-extraction.api";
 
@@ -10,7 +11,10 @@ import {DataExtractionConfig, DataExtractionCsv} from "./data-extraction.csv";
 import {kycCaseSummaryApi, KycCaseSummaryApi} from "../kyc-case-summary";
 import {DataExtractionResultModel} from "../../models";
 import {first, GenAiModel, GenerativeResponse} from "../../utils";
-import axios from "axios";
+import pQueue from '../../utils/p-queue'
+import PQueue from "../../utils/p-queue";
+
+const queue = new PQueue({concurrency: 4});
 
 export interface DataExtractionBackendConfig {
     identityUrl: string;
@@ -194,9 +198,11 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
     async findRelevantPassages(question: string, passages: string[]): Promise<string> {
         const url = process.env.RELEVANT_PASSAGES_URL || 'https://similarity-check.18xu6cedovu0.us-south.codeengine.appdomain.cloud/api/find_relevant_passage'
 
-        return axios
-            .post<{relevant_passage: string}>(url, {question, passages})
-            .then(response => response.data.relevant_passage)
+        return await queue
+            .add(() => axios
+                .post<{relevant_passage: string}>(url, {question, passages})
+                .then(response => response.data.relevant_passage)
+            ) as string
     }
 
     async generateResponse(customer: string, config: DataExtractionConfig, text: string, backends: WatsonBackends): Promise<{watsonxResponse: string, prompt: string}> {
