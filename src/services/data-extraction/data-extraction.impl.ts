@@ -14,7 +14,7 @@ import {first, GenAiModel, GenerativeResponse} from "../../utils";
 import pQueue from '../../utils/p-queue'
 import PQueue from "../../utils/p-queue";
 
-const queue = new PQueue({concurrency: 4});
+const queue = new PQueue({concurrency: 2});
 
 export interface DataExtractionBackendConfig {
     identityUrl: string;
