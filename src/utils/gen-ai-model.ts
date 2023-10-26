@@ -91,7 +91,7 @@ export class GenAiModel {
                 }
 
                 console.log('Error generating text: ', err);
-                throw err;
+                return {generatedText: '[Error]'}
             })
     }
 }
