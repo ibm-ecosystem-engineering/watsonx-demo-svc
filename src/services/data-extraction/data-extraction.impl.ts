@@ -13,7 +13,8 @@ import {DataExtractionResultModel} from "../../models";
 import {first, GenAiModel, GenerativeResponse} from "../../utils";
 import PQueue from "../../utils/p-queue";
 
-const queue = new PQueue({concurrency: 2});
+const concurrency = parseInt(process.env.FIND_PASSAGE_CONCURRENCY || '8')
+const queue = new PQueue({concurrency});
 
 export interface DataExtractionBackendConfig {
     identityUrl: string;
