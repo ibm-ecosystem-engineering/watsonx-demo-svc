@@ -11,10 +11,9 @@ import {DataExtractionConfig, DataExtractionCsv} from "./data-extraction.csv";
 import {kycCaseSummaryApi, KycCaseSummaryApi} from "../kyc-case-summary";
 import {DataExtractionResultModel} from "../../models";
 import {first, GenAiModel, GenerativeResponse} from "../../utils";
-import pQueue from '../../utils/p-queue'
 import PQueue from "../../utils/p-queue";
 
-const queue = new PQueue({concurrency: 2});
+const queue = new PQueue({concurrency: 1});
 
 export interface DataExtractionBackendConfig {
     identityUrl: string;
@@ -202,6 +201,11 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
             .add(() => axios
                 .post<{relevant_passage: string}>(url, {question, passages})
                 .then(response => response.data.relevant_passage)
+                .catch(err => {
+                    console.error('Error getting relevant passages: ', {err})
+
+                    return passages.join('\n')
+                })
             ) as string
     }
 
