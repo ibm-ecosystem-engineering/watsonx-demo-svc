@@ -13,7 +13,7 @@ import {DataExtractionResultModel} from "../../models";
 import {first, GenAiModel, GenerativeResponse} from "../../utils";
 import PQueue from "../../utils/p-queue";
 
-const queue = new PQueue({concurrency: 1});
+const queue = new PQueue({concurrency: 2});
 
 export interface DataExtractionBackendConfig {
     identityUrl: string;
@@ -162,6 +162,8 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
             ? this.handleDiscoveryPassages(response.result)
             : this.handleDiscoveryResult(response.result, customer);
 
+        console.log('Finding relevant passages')
+
         const text: string = await this.findRelevantPassages(naturalLanguageQuery, passages)
 
         console.log('1. Text extracted from Discovery:', {naturalLanguageQuery, text})
@@ -198,15 +200,22 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
         const url = process.env.RELEVANT_PASSAGES_URL || 'https://similarity-check.18xu6cedovu0.us-south.codeengine.appdomain.cloud/api/find_relevant_passage'
 
         return await queue
-            .add(() => axios
-                .post<{relevant_passage: string}>(url, {question, passages})
-                .then(response => response.data.relevant_passage)
-                .catch(err => {
-                    console.error('Error getting relevant passages: ', {err})
+            .add(async () => {
+                console.log('Getting relevant passage')
 
-                    return passages.join('\n')
-                })
-            ) as string
+                const relevantPassage = await axios
+                        .post<{relevant_passage: string}>(url, {question, passages})
+                        .then(response => response.data.relevant_passage)
+                        .catch(err => {
+                            console.error('Error getting relevant passages: ', {err})
+
+                            return passages.join('\n')
+                        })
+
+                console.log('Found relevant passage: ', {relevantPassage})
+
+                return relevantPassage
+            }) as string
     }
 
     async generateResponse(customer: string, config: DataExtractionConfig, text: string, backends: WatsonBackends): Promise<{watsonxResponse: string, prompt: string}> {

@@ -18,7 +18,13 @@ export class DataExtractionResultResolver {
         @Args('questions', {type: () => [DataExtractionQuestionIdInput]}) questions: DataExtractionQuestionIdInput[],
     ): Promise<DataExtractionResultModel[]> {
 
-        return this.service.extractData(customer, questions);
+        console.log('Extracting data for questions', JSON.stringify({customer, questions}))
+
+        const result = await this.service.extractData(customer, questions);
+
+        console.log('Got result', {result})
+
+        return result;
     }
 
     @Query(() => DataExtractionResult)
@@ -27,7 +33,13 @@ export class DataExtractionResultResolver {
         @Args('question', {type: () => DataExtractionQuestionIdInput}) question: DataExtractionQuestionIdInput,
     ): Promise<DataExtractionResultModel> {
 
-        return this.service.extractDataForQuestion(customer, question);
+        console.log('Extracting data for question', JSON.stringify({customer, question}))
+
+        const result = await this.service.extractDataForQuestion(customer, question);
+
+        console.log('Got result', {result})
+
+        return result
     }
 
     @Subscription(() => [DataExtractionResult], {
