@@ -219,11 +219,26 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
         const input = prompt + '\n\n' + text;
 
         const modelId = config.model || this.backendConfig.modelId;
-        const result: GenerativeResponse = await backends.wml.generate({
-            input,
-            modelId,
-            parameters,
-        });
+        const result: GenerativeResponse = await backends.wml
+            .generate({
+                input,
+                modelId,
+                parameters,
+            })
+            .then(result => {
+                if (result?.generatedText?.trim()) {
+                    return result
+                }
+
+                const fallbackModelId: string = 'meta-llama/llama-2-70b-chat'
+                console.log(`*** No information returned from generate. Trying again with ${fallbackModelId} model`)
+
+                return backends.wml.generate({
+                    input,
+                    modelId: fallbackModelId,
+                    parameters,
+                })
+            });
 
         console.log('2. Text generated from watsonx.ai:', {prompt, modelId, max_new_tokens, generatedText: result.generatedText, input})
 
