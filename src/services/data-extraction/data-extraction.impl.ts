@@ -210,7 +210,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
                         .catch(err => {
                             console.error('Error getting relevant passages: ', {err})
 
-                            return passages.join('\n')
+                            return striptags(passages.join('\n'))
                         })
 
                 console.log('Found relevant passage: ', {relevantPassage})
