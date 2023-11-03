@@ -205,8 +205,14 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
                 console.log('Getting relevant passage')
 
                 const relevantPassage = await axios
-                        .post<{relevant_passage: string}>(url, {question, passages})
-                        .then(response => response.data.relevant_passage)
+                        .post<{relevant_passage: string} | string>(url, {question, passages})
+                        .then(response => {
+                            if (typeof response.data === 'string') {
+                                throw new Error('Error retrieving data')
+                            }
+
+                            return response.data.relevant_passage
+                        })
                         .catch(err => {
                             console.error('Error getting relevant passages: ', {err})
 
@@ -239,9 +245,9 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
             parameters,
         });
 
-        console.log('2. Text generated from watsonx.ai:', {prompt, modelId, max_new_tokens, generatedText: result.generatedText, input})
+        console.log('2. Text generated from watsonx.ai:', {prompt, modelId, max_new_tokens, generatedText: result.generatedText.trim(), input})
 
-        return {watsonxResponse: result.generatedText, prompt: input};
+        return {watsonxResponse: result.generatedText.trim(), prompt: input};
     }
 
     async getBackends(): Promise<WatsonBackends> {
@@ -286,6 +292,11 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
         texts[SOURCE_KYCSUMMARY] = await this.kycSummaryService
             .summarize(subject)
             .then(text => text.replace(/^Output: */, ''))
+            .then(text => {
+                console.log(`KYC Summary for ${subject}: ${text}`)
+
+                return text
+            })
             .catch(err => {
                 console.log('Error getting kyc summary: ', {err})
 
