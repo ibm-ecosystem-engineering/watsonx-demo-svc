@@ -293,9 +293,11 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
             .summarize(subject)
             .then(text => text.replace(/^Output: */, ''))
             .then(text => {
-                console.log(`KYC Summary for ${subject}: ${text}`)
+                const result = text.trim()
 
-                return text
+                console.log(`KYC Summary for ${subject}: ${result}`)
+
+                return result
             })
             .catch(err => {
                 console.log('Error getting kyc summary: ', {err})
