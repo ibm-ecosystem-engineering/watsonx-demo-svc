@@ -539,10 +539,12 @@ export class NegativeNewsImpl implements NegativeNewsApi {
             "tbm": "nws",
         }
 
-        return queue.add(() => this.service.scrape(params)).catch(err => {
-            console.log('Error accessing Scrapeit: ', {err})
-            throw err
-        }) as Promise<SearchResult[]>
+        return queue
+            .add(() => this.service.scrape(params))
+            .catch(err => {
+                console.log('Error accessing Scrapeit: ', {err})
+                throw err
+            }) as Promise<SearchResult[]>
     }
 
     async validateUrls(data: SearchResult[]): Promise<{validUrls: ValidatedSearchResult[], badUrls: ValidatedSearchResult[]}> {

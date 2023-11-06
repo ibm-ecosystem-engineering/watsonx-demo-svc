@@ -11,6 +11,6 @@ export class WebScrapeScrapeit implements WebScrapeApi {
 
     scrape(params: WebScrapeParams): Promise<SearchResult[]> {
         return this.service.scrape(params)
-            .then(response => response.newsResults);
+            .then(response => response.newsResults || []);
     }
 }
