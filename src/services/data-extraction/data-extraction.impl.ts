@@ -200,6 +200,10 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
     async findRelevantPassages(question: string, passages: string[]): Promise<string> {
         const url = process.env.RELEVANT_PASSAGES_URL || 'https://similarity-check.18xu6cedovu0.us-south.codeengine.appdomain.cloud/api/find_relevant_passage'
 
+        if (passages.length === 1) {
+            return passages[0]
+        }
+
         return await queue
             .add(async () => {
                 console.log('Getting relevant passage')

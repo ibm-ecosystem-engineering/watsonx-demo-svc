@@ -1,4 +1,4 @@
-import {Controller, Get, Query} from "@nestjs/common";
+import {Controller, Get, Post, Query} from "@nestjs/common";
 
 import {DataExtractionApi} from "../../services/data-extraction";
 import {ApiTags} from "@nestjs/swagger";
@@ -6,7 +6,8 @@ import {ApiTags} from "@nestjs/swagger";
 @ApiTags('data-extraction')
 @Controller('data-extraction')
 export class DataExtractionController {
-    constructor(private readonly service: DataExtractionApi) {}
+    constructor(private readonly service: DataExtractionApi) {
+    }
 
     @Get('questions')
     listQuestions() {
@@ -35,5 +36,15 @@ export class DataExtractionController {
 
         return this.service.extractData(customer, questionIds.map(id => ({id})))
             .catch(err => console.error(err))
+    }
+
+    @Get('findRelevantPassages')
+    async findRelevantPassages(
+        @Query('question') question: string,
+        @Query('passages') passages: string[] = []
+    ): Promise<string> {
+        const passageVals = Array.isArray(passages) ? passages : [passages]
+
+        return this.service.findRelevantPassages(question, passageVals)
     }
 }

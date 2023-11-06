@@ -10,4 +10,6 @@ export abstract class DataExtractionApi {
     abstract extractDataForQuestion(customer: string, question: {id: string}): Promise<DataExtractionResultModel>;
 
     abstract extractDataObservable(customer: string, questions: Array<{id: string}>): Observable<DataExtractionResultModel[]>;
+
+    abstract findRelevantPassages(question: string, passages: string[]): Promise<string>;
 }
