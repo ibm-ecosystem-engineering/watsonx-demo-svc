@@ -28,4 +28,8 @@ export class DataExtractionMock extends DataExtractionCsv<{}, {}> implements Dat
         return {};
     }
 
+    async findRelevantPassages(question: string, passages: string[]): Promise<string> {
+        return ''
+    }
+
 }
