@@ -546,6 +546,12 @@ export class NegativeNewsImpl implements NegativeNewsApi {
     }
 
     async validateUrls(data: SearchResult[]): Promise<{validUrls: ValidatedSearchResult[], badUrls: ValidatedSearchResult[]}> {
+        if (!data) {
+            const message: string = 'validateUrls() data value is undefined'
+            console.log(message)
+            throw new Error(message)
+        }
+
         const validatedData: ValidatedSearchResult[] = await Promise.all(
             data.map(this.validateUrl.bind(this))
         )
@@ -567,6 +573,12 @@ export class NegativeNewsImpl implements NegativeNewsApi {
     }
 
     async checkAllNegativeNews(news: ValidatedSearchResult[], generate: GenerateFunction): Promise<{negativeNews: ScoredSearchResult[], positiveNews: ScoredSearchResult[]}> {
+
+        if (!news) {
+            const message: string = 'checkAllNegativeNews() news value is undefined'
+            console.log(message)
+            throw new Error(message)
+        }
 
         const results: ScoredSearchResult[] = await Promise.all(news.map(val => this.checkNegativeNews(val, generate)))
 
@@ -609,6 +621,12 @@ export class NegativeNewsImpl implements NegativeNewsApi {
 
     async summarizeAllNews(news: ScoredSearchResult[], generate: GenerateFunction): Promise<SummarizedSearchResult[]> {
 
+        if (!news) {
+            const message: string = 'summarizeAllNews() news value is undefined'
+            console.log(message)
+            throw new Error(message)
+        }
+
         return Promise.all(news.map(news => this.summarizeNews(news, generate)))
     }
 
@@ -623,6 +641,12 @@ export class NegativeNewsImpl implements NegativeNewsApi {
     }
 
     async filterAllNews(negativeNews: SummarizedSearchResult[], subjectName: string, generate: GenerateFunction, filterParams?: {countryOfResidence?: string, dateOfBirth?: string}): Promise<{tp: FilteredSearchResult[], fp: FilteredSearchResult[]}> {
+
+        if (!negativeNews) {
+            const message: string = 'filterAllNews() negativeNews value is undefined'
+            console.log(message)
+            throw new Error(message)
+        }
 
         const result = await Promise.all(
             negativeNews.map(news => this.filterNews(news, subjectName, generate, filterParams))
@@ -727,6 +751,12 @@ export class NegativeNewsImpl implements NegativeNewsApi {
     }
 
     extractTopics(vals: FilteredSearchResult[]) {
+        if (!vals) {
+            const message: string = 'extractTopics() vals parameter is undefined'
+            console.log(message)
+            throw new Error(message)
+        }
+
         return vals
             .map(val => val.negativeNewsTopics)
             .reduce((topics: string[], current: string[]) => {
