@@ -5,3 +5,4 @@ export * from './gen-ai-model';
 export * from './stream-to-buffer';
 export * from './url-to-stream';
 export * from './validate-url';
+export * from './strip-urls';
