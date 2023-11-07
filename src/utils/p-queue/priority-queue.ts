@@ -1,6 +1,6 @@
-import {Queue, RunFunction} from './queue.js';
-import lowerBound from './lower-bound.js';
-import {QueueAddOptions} from './options.js';
+import {Queue, RunFunction} from './queue';
+import lowerBound from './lower-bound';
+import {QueueAddOptions} from './options';
 
 export interface PriorityQueueOptions extends QueueAddOptions {
 	priority?: number;

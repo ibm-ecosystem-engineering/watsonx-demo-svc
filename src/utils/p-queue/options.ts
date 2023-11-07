@@ -1,4 +1,4 @@
-import {Queue, RunFunction} from './queue.js';
+import {Queue, RunFunction} from './queue';
 
 interface TimeoutOptions {
 	/**

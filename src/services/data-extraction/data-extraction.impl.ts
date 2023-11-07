@@ -1,7 +1,7 @@
 import * as process from "process";
 import {IamAuthenticator, IamTokenManager} from "ibm-cloud-sdk-core";
 import DiscoveryV2 = require("ibm-watson/discovery/v2");
-const striptags = require("striptags");
+const stripTags = require("striptags");
 import axios from "axios";
 
 import {DataExtractionApi} from "./data-extraction.api";
@@ -10,7 +10,7 @@ import {createDiscoveryV2} from "../../utils/discovery-v2";
 import {DataExtractionConfig, DataExtractionCsv} from "./data-extraction.csv";
 import {kycCaseSummaryApi, KycCaseSummaryApi} from "../kyc-case-summary";
 import {DataExtractionResultModel} from "../../models";
-import {first, GenAiModel, GenerativeResponse} from "../../utils";
+import {first, GenAiModel, GenerativeResponse, stripUrls} from "../../utils";
 import PQueue from "../../utils/p-queue";
 
 const concurrency = parseInt(process.env.FIND_PASSAGE_CONCURRENCY || '8')
@@ -146,7 +146,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
     async queryDiscovery(customer: string, config: DataExtractionConfig, backends: WatsonBackends): Promise<string> {
         const naturalLanguageQuery = config.question + ' ' + customer;
 
-        const passagesPerDocument = true;
+        const passagesPerDocument: boolean = true;
         const response: DiscoveryV2.Response<DiscoveryV2.QueryResponse> = await backends.discovery.query({
             projectId: this.backendConfig.discoveryProjectId,
             naturalLanguageQuery,
@@ -159,9 +159,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
             }
         })
 
-        const passages: string[] = !passagesPerDocument
-            ? this.handleDiscoveryPassages(response.result)
-            : this.handleDiscoveryResult(response.result, customer);
+        const passages: string[] = this.handleDiscoveryResponse(response.result, customer, passagesPerDocument)
 
         console.log('Finding relevant passages')
 
@@ -172,6 +170,16 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
         console.log(text)
 
         return text;
+    }
+
+    handleDiscoveryResponse(result: DiscoveryV2.QueryResponse, subject: string, passagesPerDocument: boolean): string[] {
+        const passages: string[] = !passagesPerDocument
+            ? this.handleDiscoveryPassages(result)
+            : this.handleDiscoveryResult(result, subject);
+
+        return passages
+            .map(stripTags)
+            .map(stripUrls)
     }
 
     filterDocuments(result: DiscoveryV2.QueryResponse, subject: string): DiscoveryV2.QueryResult[] {
@@ -198,7 +206,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
     }
 
     async findRelevantPassages(question: string, passages: string[]): Promise<string> {
-        const url = process.env.RELEVANT_PASSAGES_URL || 'https://similarity-check.18xu6cedovu0.us-south.codeengine.appdomain.cloud/api/find_relevant_passage'
+        const url = process.env.RELEVANT_PASSAGES_URL || 'https://similarity-check.18z7sftfb1j5.us-south.codeengine.appdomain.cloud/api/find_relevant_passage'
 
         if (passages.length === 1) {
             return passages[0]
@@ -220,7 +228,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
                         .catch(err => {
                             console.error('Error getting relevant passages: ', {err})
 
-                            return striptags(passages.join('\n'))
+                            return passages.join('\n')
                         })
 
                 console.log('Found relevant passage: ', {relevantPassage})
