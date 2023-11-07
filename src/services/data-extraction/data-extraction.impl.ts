@@ -240,7 +240,9 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
             repetition_penalty: this.backendConfig.repetitionPenalty,
         }
 
-        const input = prompt + '\n\n' + text;
+        const fullInput = prompt + '\n\n' + text;
+
+        const input = fullInput.slice(0, Math.min(4096, fullInput.length))
 
         const modelId = config.model || this.backendConfig.modelId;
         const result: GenerativeResponse = await backends.wml.generate({
