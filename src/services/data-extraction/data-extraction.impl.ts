@@ -1,7 +1,6 @@
 import * as process from "process";
 import {IamAuthenticator, IamTokenManager} from "ibm-cloud-sdk-core";
 import DiscoveryV2 = require("ibm-watson/discovery/v2");
-const stripTags = require("striptags");
 import axios from "axios";
 
 import {DataExtractionApi} from "./data-extraction.api";
@@ -10,7 +9,7 @@ import {createDiscoveryV2} from "../../utils/discovery-v2";
 import {DataExtractionConfig, DataExtractionCsv} from "./data-extraction.csv";
 import {kycCaseSummaryApi, KycCaseSummaryApi} from "../kyc-case-summary";
 import {DataExtractionResultModel} from "../../models";
-import {first, GenAiModel, GenerativeResponse, stripUrls} from "../../utils";
+import {first, GenAiModel, GenerativeResponse, stripUrls, stripTags} from "../../utils";
 import PQueue from "../../utils/p-queue";
 
 const concurrency = parseInt(process.env.FIND_PASSAGE_CONCURRENCY || '8')
@@ -161,8 +160,6 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
 
         const passages: string[] = this.handleDiscoveryResponse(response.result, customer, passagesPerDocument)
 
-        console.log('Finding relevant passages')
-
         const text: string = await this.findRelevantPassages(naturalLanguageQuery, passages)
 
         console.log('1. Text extracted from Discovery:', {naturalLanguageQuery, text})
@@ -177,9 +174,18 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
             ? this.handleDiscoveryPassages(result)
             : this.handleDiscoveryResult(result, subject);
 
-        return passages
+        const cleanPassages = passages
             .map(stripTags)
             .map(stripUrls)
+
+        cleanPassages.forEach((cleanPassage: string, index: number) => {
+            const originalPassage = passages[index]
+            if (cleanPassage.length !== originalPassage.length) {
+                console.log('Passage changed', {originalPassage, cleanPassage})
+            }
+        })
+
+        return cleanPassages
     }
 
     filterDocuments(result: DiscoveryV2.QueryResponse, subject: string): DiscoveryV2.QueryResult[] {
@@ -214,8 +220,6 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
 
         return await queue
             .add(async () => {
-                console.log('Getting relevant passage')
-
                 const relevantPassage = await axios
                         .post<{relevant_passage: string} | string>(url, {question, passages})
                         .then(response => {
@@ -231,7 +235,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
                             return passages.join('\n')
                         })
 
-                console.log('Found relevant passage: ', {relevantPassage})
+                console.log('0. Found relevant passage: ', {relevantPassage})
 
                 return relevantPassage
             }) as string

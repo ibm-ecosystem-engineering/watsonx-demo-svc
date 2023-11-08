@@ -6,3 +6,4 @@ export * from './stream-to-buffer';
 export * from './url-to-stream';
 export * from './validate-url';
 export * from './strip-urls';
+export * from './strip-tags';
