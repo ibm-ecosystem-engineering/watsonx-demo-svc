@@ -160,7 +160,9 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
 
         const passages: string[] = this.handleDiscoveryResponse(response.result, customer, passagesPerDocument)
 
-        const text: string = await this.findRelevantPassages(naturalLanguageQuery, passages)
+        const question = config.cosinePrompt.replace('#', customer) || naturalLanguageQuery
+
+        const text: string = await this.findRelevantPassages(question, passages)
 
         console.log('1. Text extracted from Discovery:', {naturalLanguageQuery, text})
 
@@ -235,7 +237,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
                             return passages.join('\n')
                         })
 
-                console.log('0. Found relevant passage: ', {relevantPassage})
+                console.log('0. Found relevant passage: ', {question, relevantPassage})
 
                 return relevantPassage
             }) as string

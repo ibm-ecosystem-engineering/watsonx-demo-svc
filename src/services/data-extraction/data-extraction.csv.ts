@@ -6,15 +6,15 @@ import {DataExtractionApi} from "./data-extraction.api";
 import {DataExtractionQuestionModel, DataExtractionResultModel} from "../../models";
 import {first, parseCsv} from "../../utils";
 
-const csvFile: string = `ID,Question,Source,Model,Token,PoCScope,Company,Prompt,Expected Answer,watsonx Response
-1,What is Name and trading name of the organization?,Discovery,google/flan-t5-xxl,20,,,"From below text,What is Name and trading name of the organization #?",,
-2,What is the registered address of the company?,Discovery,google/flan-t5-xxl,20,X,BP P.L.C,From below text find the registered address of the company #?,"1 St James's Square, London, SW1Y 4PD","1 St James's Square, London, SW1Y 4PD"
-3,What is the business/trading address of the company?,Discovery,google/flan-t5-xxl,20,,,"from below text, What is the business / trading Address of the Company #?",,
-4,What is identification number of the organization?,Discovery,google/flan-t5-xxl,20,X,BP P.L.C,from below text find  identification number of the organization #? ,102498,102498
+const csvFile: string = `ID,Question,Source,Model,Token,PoCScope,Company,Prompt,Expected Answer,Cosine Prompt
+1,What is name and trading name of the organization?,Discovery,google/flan-t5-xxl,20,,,"From below text, what is name and trading name of the organization #?",,"What is name and trading name of #?"
+2,What is the registered address of the company?,Discovery,google/flan-t5-xxl,20,X,BP P.L.C,"From below text, find the registered address of the company #?","1 St James's Square, London, SW1Y 4PD","Find the registered address of #?"
+3,What is the business/trading address of the company?,Discovery,google/flan-t5-xxl,20,,,"From below text, what is the business / trading address of the company #?",,"What is the business / trading address of #?"
+4,What is identification number of the organization?,Discovery,google/flan-t5-xxl,20,X,BP P.L.C,from below text find  identification number of the organization #?,102498,
 5,Who are the key controllers and authorized signatories?,KYCSummary,meta-llama/llama-2-70b-chat,30,,,"from below text, Who are the key controllers and authorized signatories of the company #?",,
-6,Names all the active directors of the company.,KYCSummary,meta-llama/llama-2-70b-chat,30,X,BP P.L.C,"from below text, find the names of all active directors of the company # in sequence ?","LUND, Helge BLANC, Amanda Jayne DALEY, Pamela","LUND, Helge BLANC, Amanda Jayne DALEY, Pamela"
-7,"What is the status of the organization ex; active, dissolved?",Discovery,google/flan-t5-xxl,20,X,BP P.L.C,"from below text, what is the status of the organization # ex: Active or Dissolved ?",Active,Active
-8,What is the year of incorporation?,Discovery,google/flan-t5-xxl,20,X,BP P.L.C,"from below text, What is the year of incorporation of the company #?",1909,1909
+6,Names all the active directors of the company.,KYCSummary,meta-llama/llama-2-70b-chat,30,X,BP P.L.C,"from below text, find the names of all active directors of the company # in sequence ?","LUND, Helge BLANC, Amanda Jayne DALEY, Pamela",
+7,"What is the status of the organization ex; active, dissolved?",Discovery,google/flan-t5-xxl,20,X,BP P.L.C,"from below text, what is the status of the organization # ex: Active or Dissolved ?",Active,
+8,What is the year of incorporation?,Discovery,google/flan-t5-xxl,20,X,BP P.L.C,"from below text, What is the year of incorporation of the company #?",1909,
 9,Who are the shareholders of the company along with the percentage of ownership?,Discovery,google/flan-t5-xxl,20,,,"from below text, Who are the shareholders of the company # along with the percentage of ownership?",,
 10,Who is the ultimate owner of the company?,KYCSummary,meta-llama/llama-2-70b-chat,30,,,"from below text, Who is the ultimate owner of the company #?",,
 11,Who are the key controllers and authorized signatories?,KYCSummary,meta-llama/llama-2-70b-chat,30,X,,"from below text, Who are the key controllers and authorized signatories of the company #?",,
@@ -26,7 +26,7 @@ const csvFile: string = `ID,Question,Source,Model,Token,PoCScope,Company,Prompt,
 17,What is the Legal entity Type of the organization ex; publicly traded/limited liability etc.,Discovery,google/flan-t5-xxl,30,X,,"from below text, What is the Legal entity Type of the organization # ex; publicly traded or limited liability or Private limited? etc.",,
 18,What is the turnover or revenue of the organization?,KYCSummary,meta-llama/llama-2-70b-chat,30,X,,"from below text, find the turnover or revenue of the organization #?",,
 19,Certificate/licence issued by the government.,Discovery,google/flan-t5-xxl,20,,,"from below text, What is the Certificate/licence issued by the government for company #?",,
-20,Whats is the next date of confirmation statement?,Discovery,google/flan-t5-xxl,30,X,BP P.L.C,"from below text, find the next date of confirmation statement for company #?",30/06/24,30/06/24`
+20,Whats is the next date of confirmation statement?,Discovery,google/flan-t5-xxl,30,X,BP P.L.C,"from below text, find the next date of confirmation statement for company #?",30/06/24,`
 
 export interface DataExtractionConfig extends DataExtractionQuestionModel {
     source: string;
@@ -34,6 +34,7 @@ export interface DataExtractionConfig extends DataExtractionQuestionModel {
     tokens: number;
     expectedResponse: string;
     prompt: string;
+    cosinePrompt: string;
 }
 
 let data: Promise<DataExtractionConfig[]>;
@@ -71,7 +72,8 @@ export abstract class DataExtractionCsv<A, C> extends DataExtractionApi {
                         tokens: values[4],
                         inScope: values[5] === 'X',
                         prompt: values[7],
-                        expectedResponse: '' + values[8]
+                        expectedResponse: '' + values[8],
+                        cosinePrompt: '' + values[9],
                     }))
                     .filter(val => val.id !== 'ID');
             })
