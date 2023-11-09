@@ -13,12 +13,7 @@ export const createDiscoveryV2 = async (options: UserOptions): Promise<Discovery
         console.log('Queued discovery query')
 
         return queue.add(async () => {
-            console.log('Calling query', args)
-            const result = await originalQuery(...args)
-
-            console.log('Query result', {result})
-
-            return result;
+            return originalQuery(...args)
         })
     }
 

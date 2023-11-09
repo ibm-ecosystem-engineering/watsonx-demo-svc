@@ -160,9 +160,11 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
 
         const passages: string[] = this.handleDiscoveryResponse(response.result, customer, passagesPerDocument)
 
-        const text: string = await this.findRelevantPassages(naturalLanguageQuery, passages)
+        const question = config.cosinePrompt.replace('#', customer) || naturalLanguageQuery
 
-        console.log('1. Text extracted from Discovery:', {naturalLanguageQuery, text})
+        const text: string = await this.findRelevantPassages(question, passages)
+
+        console.log('1. Text extracted from Discovery:', {naturalLanguageQuery, text, cosineQuestion: question, passages})
 
         console.log(text)
 
@@ -174,18 +176,9 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
             ? this.handleDiscoveryPassages(result)
             : this.handleDiscoveryResult(result, subject);
 
-        const cleanPassages = passages
+        return passages
             .map(stripTags)
             .map(stripUrls)
-
-        cleanPassages.forEach((cleanPassage: string, index: number) => {
-            const originalPassage = passages[index]
-            if (cleanPassage.length !== originalPassage.length) {
-                console.log('Passage changed', {originalPassage, cleanPassage})
-            }
-        })
-
-        return cleanPassages
     }
 
     filterDocuments(result: DiscoveryV2.QueryResponse, subject: string): DiscoveryV2.QueryResult[] {
@@ -220,7 +213,7 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
 
         return await queue
             .add(async () => {
-                const relevantPassage = await axios
+                return axios
                         .post<{relevant_passage: string} | string>(url, {question, passages})
                         .then(response => {
                             if (typeof response.data === 'string') {
@@ -234,10 +227,6 @@ export class DataExtractionImpl extends DataExtractionCsv<WatsonBackends, Contex
 
                             return passages.join('\n')
                         })
-
-                console.log('0. Found relevant passage: ', {relevantPassage})
-
-                return relevantPassage
             }) as string
     }
 
