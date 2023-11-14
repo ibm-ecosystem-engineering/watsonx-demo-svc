@@ -9,6 +9,11 @@
         "include": "../config/*.*",
         "outDir": "dist/config",
         "watchAssets": true
+      },
+      {
+        "include": "**/*.json",
+        "outDir": "dist/src",
+        "watchAssets": true
       }
     ]
   }
