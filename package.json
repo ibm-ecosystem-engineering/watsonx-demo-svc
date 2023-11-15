@@ -29,7 +29,7 @@
     "@nestjs/core": "^10.2.8",
     "@nestjs/graphql": "^12.0.9",
     "@nestjs/platform-express": "^10.2.8",
-    "@nestjs/swagger": "^7.1.14",
+    "@nestjs/swagger": "^7.1.16",
     "@scrapeit-cloud/google-serp-api": "^1.0.3",
     "axios": "^1.6.0",
     "dayjs": "^1.11.10",
